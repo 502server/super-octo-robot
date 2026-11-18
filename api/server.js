@@ -10,7 +10,7 @@ import {hashToken,safeEqual,normalizeOrigin,isPrivateAddress} from "./security.j
 import {createIntegrationRouter} from "./integrations.js";
 import {createIntelligenceRouter} from "./intelligence.js";
 import {roleGuard,canAssignRole,sameWorkspace} from "./access.js";
-const app=express(),port=Number(process.env.PORT||3000),bootstrapToken=process.env.BOOTSTRAP_TOKEN||"",sessionSecret=process.env.SESSION_SECRET||"";
+const app=express(),port=Number(process.env.PORT||3000),bootstrapToken=process.env.BOOTSTRAP_TOKEN||"",sessionSecret=process.env.SESSION_SECRET||process.env.BETTER_AUTH_SECRET||"";
 if(sessionSecret.length<32)throw Error("SESSION_SECRET must be at least 32 characters");
 if(bootstrapToken.length<24)throw Error("BOOTSTRAP_TOKEN must be at least 24 characters");
 if(process.env.TRUST_PROXY==="1")app.set("trust proxy",1);
