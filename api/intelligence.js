@@ -1,0 +1,48 @@
+import {Router} from "express";
+import {z} from "zod";
+import {read,write,id,now} from "./store.js";
+import {roleGuard,sameWorkspace} from "./access.js";
+const types=["ip","domain","url","hash","email","cert"];
+const router=Router();
+const schema=z.object({type:z.enum(types),value:z.string().min(3).max(2048),source:z.string().max(120).optional().default("manual"),confidence:z.number().int().min(0).max(100).optional().default(50),severity:z.enum(["low","medium","high","critical"]).optional().default("medium"),tags:z.array(z.string().min(1).max(48)).max(20).optional().default([]),mitre:z.array(z.string().regex(/^T\d{4}(\.\d{3})?$/)).max(20).optional().default([]),notes:z.string().max(1000).optional().default("")});
+const bulkSchema=z.object({items:z.array(schema).min(1).max(500)});\nconst alertSchema=z.object({title:z.string().min(3).max(180),severity:z.enum(["low","medium","high","critical"]).default("medium"),description:z.string().max(2000).default(""),iocId:z.string().optional(),source:z.string().max(120).default("manual")});
+export function validateIndicator(type,v){if(type==="ip")return /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/.test(v)||v.includes(":")&&/^[0-9a-f:]+$/i.test(v);if(type==="domain")return /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(v);if(type==="url"){try{const u=new URL(v);return ["http:","https:"].includes(u.protocol)&&!u.username&&!u.password}catch{return false}}if(type==="hash")return /^(?:[a-f0-9]{32}|[a-f0-9]{40}|[a-f0-9]{64}|[a-f0-9]{128})$/i.test(v);if(type==="email")return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);return type==="cert"&&v.length>=20}
+router.get("/iocs",(req,res)=>{const q=String(req.query.q||"").toLowerCase().slice(0,200),type=String(req.query.type||"");res.json({iocs:read(s=>(s.iocs||[]).filter(x=>sameWorkspace(x,req.workspaceId)&&(!q||[x.value,x.type,...(x.tags||[])].join(" ").toLowerCase().includes(q))&&(!type||x.type===type)))})});
+router.post("/iocs",roleGuard("owner","admin","analyst"),async(req,res)=>{const p=schema.safeParse(req.body);if(!p.success)return res.status(400).json({error:"Invalid IOC",issues:p.error.issues});const value=p.data.value.trim().toLowerCase();if(!validateIndicator(p.data.type,value))return res.status(400).json({error:"IOC value does not match its declared type"});const old=read(s=>(s.iocs||[]).find(x=>sameWorkspace(x,req.workspaceId)&&x.type===p.data.type&&x.value===value));if(old){const ioc=await write(s=>{const x=s.iocs.find(y=>y.id===old.id);x.lastSeen=now();x.confidence=Math.max(x.confidence,p.data.confidence);x.tags=[...new Set([...x.tags,...p.data.tags])].slice(0,40);x.sources=[...new Set([...(x.sources||[]),p.data.source])].slice(0,30);return x});return res.json({ioc,deduplicated:true})}const ioc={id:id(),workspaceId:req.workspaceId,...p.data,value,watchlisted:false,status:"active",firstSeen:now(),lastSeen:now(),sources:[p.data.source],createdBy:req.user.id};await write(s=>{s.iocs.unshift(ioc);s.iocs=s.iocs.slice(0,10000);s.audit.unshift({id:id(),userId:req.user.id,workspaceId:req.workspaceId,action:"ioc.create",detail:p.data.type+":"+value.slice(0,160),at:now()})});res.status(201).json({ioc,deduplicated:false})});
+router.post("/iocs/bulk",roleGuard("owner","admin","analyst"),async(req,res)=>{
+ const p=bulkSchema.safeParse(req.body);
+ if(!p.success)return res.status(400).json({error:"Invalid bulk IOC payload",issues:p.error.issues});
+ const prepared=[],rejected=[];
+ for(let index=0;index<p.data.items.length;index++){
+  const item=p.data.items[index],value=item.value.trim().toLowerCase();
+  if(!validateIndicator(item.type,value)){rejected.push({index,reason:"IOC value does not match its declared type"});continue}
+  prepared.push({...item,value});
+ }
+ const result=await write(s=>{
+  let created=0,deduplicated=0;
+  for(const item of prepared){
+   const existing=(s.iocs||[]).find(x=>sameWorkspace(x,req.workspaceId)&&x.type===item.type&&x.value===item.value);
+   if(existing){
+    existing.lastSeen=now();
+    existing.confidence=Math.max(existing.confidence,item.confidence);
+    existing.tags=[...new Set([...(existing.tags||[]),...item.tags])].slice(0,40);
+    existing.sources=[...new Set([...(existing.sources||[]),item.source])].slice(0,30);
+    deduplicated++;
+   }else{
+    s.iocs.unshift({id:id(),workspaceId:req.workspaceId,...item,watchlisted:false,status:"active",firstSeen:now(),lastSeen:now(),sources:[item.source],createdBy:req.user.id});
+    created++;
+   }
+  }
+  s.iocs=s.iocs.slice(0,10000);
+  s.audit.unshift({id:id(),userId:req.user.id,workspaceId:req.workspaceId,action:"ioc.bulk_import",detail:"created="+created+", deduplicated="+deduplicated+", rejected="+rejected.length,at:now()});
+  s.audit=s.audit.slice(0,1000);
+  return {created,deduplicated};
+ });
+ res.status(200).json({...result,rejected,total:p.data.items.length});
+});
+router.patch("/iocs/:id",roleGuard("owner","admin","analyst"),async(req,res)=>{const p=z.object({watchlisted:z.boolean().optional(),status:z.enum(["active","review","closed"]).optional(),confidence:z.number().int().min(0).max(100).optional(),notes:z.string().max(1000).optional()}).safeParse(req.body);if(!p.success)return res.status(400).json({error:"Invalid IOC update"});const ioc=await write(s=>{const x=(s.iocs||[]).find(y=>y.id===req.params.id&&sameWorkspace(y,req.workspaceId));if(x)Object.assign(x,p.data,{updatedAt:now()});return x});if(!ioc)return res.status(404).json({error:"IOC not found"});await write(s=>s.audit.unshift({id:id(),userId:req.user.id,workspaceId:req.workspaceId,action:"ioc.update",detail:req.params.id,at:now()}));res.json({ioc})});
+router.get("/alerts",(req,res)=>res.json({alerts:read(s=>(s.alerts||[]).filter(x=>sameWorkspace(x,req.workspaceId)))}));
+router.post("/alerts",roleGuard("owner","admin","analyst"),async(req,res)=>{const p=alertSchema.safeParse(req.body);if(!p.success)return res.status(400).json({error:"Invalid alert",issues:p.error.issues});if(p.data.iocId&&!read(s=>(s.iocs||[]).some(x=>x.id===p.data.iocId&&sameWorkspace(x,req.workspaceId))))return res.status(400).json({error:"IOC reference is not available in this workspace"});const alert={id:id(),workspaceId:req.workspaceId,...p.data,status:"open",createdAt:now(),updatedAt:now(),createdBy:req.user.id};await write(s=>{s.alerts.unshift(alert);s.alerts=s.alerts.slice(0,5000);s.audit.unshift({id:id(),userId:req.user.id,workspaceId:req.workspaceId,action:"alert.create",detail:alert.title,at:now()})});res.status(201).json({alert})});
+router.patch("/alerts/:id",roleGuard("owner","admin","analyst"),async(req,res)=>{const p=z.object({status:z.enum(["open","acknowledged","investigating","resolved","false_positive"]),assignee:z.string().max(80).optional()}).safeParse(req.body);if(!p.success)return res.status(400).json({error:"Invalid alert update"});if(p.data.assignee&&!read(s=>s.users.some(x=>x.username===p.data.assignee&&sameWorkspace(x,req.workspaceId))))return res.status(400).json({error:"Assignee must be a member of this workspace"});const alert=await write(s=>{const x=(s.alerts||[]).find(y=>y.id===req.params.id&&sameWorkspace(y,req.workspaceId));if(x)Object.assign(x,p.data,{updatedAt:now()});return x});if(!alert)return res.status(404).json({error:"Alert not found"});await write(s=>s.audit.unshift({id:id(),userId:req.user.id,workspaceId:req.workspaceId,action:"alert.update",detail:req.params.id+":"+p.data.status,at:now()}));res.json({alert})});
+router.get("/summary",(req,res)=>{const d=read(s=>({iocs:(s.iocs||[]).filter(x=>sameWorkspace(x,req.workspaceId)),alerts:(s.alerts||[]).filter(x=>sameWorkspace(x,req.workspaceId)),assets:(s.assets||[]).filter(x=>sameWorkspace(x,req.workspaceId)),findings:(s.findings||[]).filter(x=>sameWorkspace(x,req.workspaceId))}));res.json({summary:{iocCount:d.iocs.length,watchlisted:d.iocs.filter(x=>x.watchlisted).length,openAlerts:d.alerts.filter(x=>x.status==="open").length,criticalAlerts:d.alerts.filter(x=>x.severity==="critical"&&!["resolved","false_positive"].includes(x.status)).length,verifiedAssets:d.assets.filter(x=>x.verified).length,openFindings:d.findings.filter(x=>x.status==="open").length}})});
+export function createIntelligenceRouter(auth){router.use(auth);return router}
