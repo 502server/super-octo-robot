@@ -5,13 +5,13 @@ const dashboard = $("#dashboard");
 const viewRoot = $("#view-root");
 const authMessage = $("#auth-message");
 const navGroups = [
-  { label: "OVERVIEW", items: [["dashboard", "Dashboard", "◫"], ["threat-overview", "Threat overview", "◈"], ["hunt-center", "Hunt center", "⌕"]] },
-  { label: "INTELLIGENCE", items: [["iocs", "IOC search", "⌗"], ["actors", "Threat actors", "♙"], ["campaigns", "Campaigns", "◎"], ["feeds", "Feeds & sources", "≋"], ["mitre", "MITRE ATT&CK", "▦"]] },
-  { label: "EXPOSURE", items: [["attack-surface", "Attack surface", "⌘"], ["assets", "Assets & domains", "◇"], ["vulnerabilities", "Vulnerabilities", "△"], ["cloud", "Cloud exposure", "☁"]] },
-  { label: "MONITORING", items: [["dark-web", "Dark web", "◉"], ["credentials", "Credential leaks", "⌑"], ["brand", "Brand protection", "◇"], ["phishing", "Phishing detection", "⌁"], ["watchlists", "Watchlists", "☆"]] },
-  { label: "OPERATIONS", items: [["alerts", "Alerts", "◉"], ["cases", "Cases & incidents", "▣"], ["reports", "Reports", "▤"], ["tasks", "Task queue", "☷"]] },
-  { label: "INTEGRATIONS", items: [["integrations", "Connections", "⌘"], ["exports", "Data export", "⇧"]] },
-  { label: "ADMIN", items: [["team", "Team & workspace", "♧"], ["audit", "Audit log", "≡"], ["settings", "Settings", "⚙"]] },
+  { label: "OVERVIEW", items: [["dashboard", "Dashboard", "DB"], ["threat-overview", "Threat overview", "TR"], ["hunt-center", "Hunt center", "HN"]] },
+  { label: "INTELLIGENCE", items: [["iocs", "IOC search", "IOC"], ["actors", "Threat actors", "TA"], ["campaigns", "Campaigns", "CA"], ["feeds", "Feeds & sources", "FS"], ["mitre", "MITRE ATT&CK", "MIT"]] },
+  { label: "EXPOSURE", items: [["attack-surface", "Attack surface", "AS"], ["assets", "Assets & domains", "AD"], ["vulnerabilities", "Vulnerabilities", "VUL"], ["cloud", "Cloud exposure", "CL"]] },
+  { label: "MONITORING", items: [["dark-web", "Dark web", "DW"], ["credentials", "Credential leaks", "CR"], ["brand", "Brand protection", "BR"], ["phishing", "Phishing detection", "PH"], ["watchlists", "Watchlists", "WL"]] },
+  { label: "OPERATIONS", items: [["alerts", "Alerts", "AL"], ["cases", "Cases & incidents", "CI"], ["reports", "Reports", "RP"], ["tasks", "Task queue", "TQ"]] },
+  { label: "INTEGRATIONS", items: [["integrations", "Connections", "CN"], ["exports", "Data export", "EX"]] },
+  { label: "ADMIN", items: [["team", "Team & workspace", "TM"], ["audit", "Audit log", "AU"], ["settings", "Settings", "ST"]] },
 ];
 const pageInfo = {
   "threat-overview": ["Threat overview", "Strategic context for the threats most relevant to your organization.", "Intelligence sources"],
@@ -49,12 +49,26 @@ async function api(path, options = {}) {
   return data;
 }
 
+function setMobileNavigation(open, { restoreFocus = false } = {}) {
+  if (!window.matchMedia("(max-width: 620px)").matches) return;
+  const wasOpen = dashboard.classList.contains("sidebar-open");
+  dashboard.classList.toggle("sidebar-open", open);
+  $("#mobile-menu-toggle").setAttribute("aria-expanded", String(open));
+  $("#mobile-menu-toggle").setAttribute("aria-label", open ? "Close navigation menu" : "Open navigation menu");
+  $("#nav-scrim").hidden = !open;
+  if (open) $("#sidebar-nav [data-page]")?.focus({ preventScroll: true });
+  else if (restoreFocus && wasOpen) $("#mobile-menu-toggle").focus({ preventScroll: true });
+}
+
 function renderNavigation(active = "dashboard") {
   $("#sidebar-nav").innerHTML = navGroups.map((group) => `
     <div class="nav-group"><p class="nav-label">${group.label}</p>
-      ${group.items.map(([id, label, icon]) => `<button class="nav-link ${id === active ? "active" : ""}" data-page="${id}" ${id === active ? 'aria-current="page"' : ""}><span class="nav-icon" aria-hidden="true">${icon}</span><span>${label}</span>${id === "alerts" ? '<span class="nav-count" id="nav-alert-count">0</span>' : ""}</button>`).join("")}
+      ${group.items.map(([id, label, icon]) => `<button type="button" class="nav-link ${id === active ? "active" : ""}" data-page="${id}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}" ${id === active ? 'aria-current="page"' : ""}><span class="nav-icon" aria-hidden="true">${icon}</span><span>${escapeHTML(label)}</span>${id === "alerts" ? '<span class="nav-count" id="nav-alert-count">0</span>' : ""}</button>`).join("")}
     </div>`).join("");
-  $$("[data-page]").forEach((button) => button.addEventListener("click", () => navigate(button.dataset.page)));
+  $$('[data-page]', $("#sidebar-nav")).forEach((button) => button.addEventListener("click", () => {
+    navigate(button.dataset.page);
+    setMobileNavigation(false);
+  }));
 }
 
 function navigate(page) {
@@ -69,6 +83,7 @@ function navigate(page) {
   else if (page === "integrations") renderIntegrationsPage();
   else if (page === "team") renderTeamPage();
   else if (page === "audit") renderAuditPage();
+  else if (page === "cloud") renderCloudShell();
   else renderModulePage(page);
   viewRoot.focus({ preventScroll: true });
 }
@@ -338,6 +353,66 @@ async function loadWatchlists() {
   catch (error) { $("#watchlist-table").innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`; }
 }
 
+function renderCloudShell() {
+  viewRoot.innerHTML = `${pageHeading("CLOUD / SAFE CONSOLE", "CloudShell", "A Linux-style command console for safe workspace orientation.")}
+    <section class="surface-card cloudshell-card" aria-label="CloudShell safe command console">
+      <header class="cloudshell-toolbar"><div class="cloudshell-identity"><span class="cloudshell-led" aria-hidden="true"></span><div><strong>fivezero2-cloudshell</strong><small>Linux command preview · isolated demo</small></div></div><span class="subtle-tag">Safe demo mode</span></header>
+      <p class="cloudshell-notice" role="note"><span aria-hidden="true">!</span><span><strong>Demo console:</strong> commands use a small read-only browser allowlist. This terminal never runs commands on the server or OpenShift cluster; Connections provides a separate read-only identity check.</span></p>
+      <div class="terminal-window"><div class="terminal-titlebar" aria-hidden="true"><i></i><i></i><i></i><span>cloudshell — safe demo</span></div><div id="cloud-terminal-output" class="terminal-output" role="log" aria-live="polite" aria-relevant="additions text"><p class="terminal-line terminal-system">Welcome to fivezero2 CloudShell demo. Type help to see supported commands.</p></div>
+        <form id="cloud-terminal-form" class="terminal-form"><label class="sr-only" for="cloud-terminal-input">Enter a supported demo command</label><span class="terminal-prompt" aria-hidden="true">analyst@cloudshell:~$</span><input id="cloud-terminal-input" name="command" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="try help" aria-describedby="cloudshell-footnote" /><button class="terminal-run" type="submit">Run</button></form>
+      </div>
+      <div class="terminal-shortcuts" aria-label="Example commands"><span>Try:</span><button type="button" data-terminal-command="help">help</button><button type="button" data-terminal-command="pwd">pwd</button><button type="button" data-terminal-command="ls">ls</button><button type="button" data-terminal-command="uname -s">uname -s</button></div>
+      <p id="cloudshell-footnote" class="cloudshell-footnote"><strong>Powered by Red Hat &amp; Linux.</strong> Environment details are illustrative; this demo does not access live shell resources.</p>
+    </section>`;
+
+  const output = $("#cloud-terminal-output");
+  const form = $("#cloud-terminal-form");
+  const input = $("#cloud-terminal-input");
+  const commandResults = {
+    help: "Supported commands: clear, date, help, ls, pwd, uname -s, whoami",
+    date: () => new Date().toString(),
+    ls: "README.txt  indicators/  reports/",
+    pwd: "/home/analyst",
+    "uname -s": "Linux (illustrative demo environment)",
+    whoami: "analyst (demo session)",
+  };
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && (event.isComposing || event.keyCode === 229)) event.preventDefault();
+  });
+
+  function writeTerminalLine(className, content) {
+    const line = document.createElement("p");
+    line.className = `terminal-line ${className}`;
+    line.textContent = content;
+    output.append(line);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const command = input.value.trim();
+    if (!command) return;
+    writeTerminalLine("terminal-command", `analyst@cloudshell:~$ ${command}`);
+    input.value = "";
+
+    if (command === "clear") {
+      output.replaceChildren();
+      return;
+    }
+
+    const supported = Object.hasOwn(commandResults, command);
+    const result = supported ? commandResults[command] : null;
+    writeTerminalLine(supported ? "terminal-result" : "terminal-warning", typeof result === "function" ? result() : result || `Command unavailable in safe demo mode: ${command}. Type help for supported commands.`);
+  });
+
+  $$('[data-terminal-command]').forEach((button) => button.addEventListener("click", () => {
+    input.value = button.dataset.terminalCommand;
+    form.requestSubmit();
+    input.focus();
+  }));
+}
+
 function renderModulePage(page) {
   const [title, description, connection] = pageInfo[page] || ["Workspace module", "Review threat intelligence and operational status for your organization.", "Data source"];
   viewRoot.innerHTML = `${pageHeading("THREAT INTELLIGENCE / WORKSPACE", title, description)}
@@ -357,9 +432,9 @@ async function loadIntegrations() {
     const { integrations } = await api("/integrations/status");
     $("#integrations-list").innerHTML = integrations.map((integration) => {
       const configured = ["configured", "valid"].includes(integration.state);
-      const details = integration.id === "deepseek" ? `Model: ${escapeHTML(integration.model)} · Credential: ${integration.credentialPresent ? "present" : "not set"}` : integration.id === "hasura" ? `Endpoint: ${integration.endpointPresent ? "set" : "missing"} · Credentials: ${integration.adminSecretPresent && integration.jwtSecretPresent ? "present" : "incomplete"}` : escapeHTML(integration.note || "Server-side configuration");
-      const canTest = ["owner", "admin"].includes(window.currentRole) && ["deepseek", "hasura"].includes(integration.id);
-      return `<article class="integration-row"><span class="integration-icon">${integration.id === "deepseek" ? "D" : integration.id === "hasura" ? "H" : "⌘"}</span><div><strong>${escapeHTML(integration.name)}</strong><small>${details}</small></div><span class="asset-state ${configured ? "verified" : "pending"}"><i></i>${configured ? "Configured" : "Not configured"}</span>${canTest ? `<button data-test-integration="${escapeHTML(integration.id)}">Test connection</button>` : ""}</article>`;
+      const details = integration.id === "deepseek" ? `Model: ${escapeHTML(integration.model)} · Credential: ${integration.credentialPresent ? "present" : "not set"}` : integration.id === "hasura" ? `Endpoint: ${integration.endpointPresent ? "set" : "missing"} · Credentials: ${integration.adminSecretPresent && integration.jwtSecretPresent ? "present" : "incomplete"}` : integration.id === "openshift" ? `Endpoint: ${escapeHTML(integration.endpoint)} · Token: ${integration.credentialPresent ? "present" : "not set"}` : escapeHTML(integration.note || "Server-side configuration");
+      const canTest = (["owner", "admin"].includes(window.currentRole) && ["deepseek", "hasura"].includes(integration.id)) || (["owner", "admin", "analyst"].includes(window.currentRole) && integration.id === "openshift");
+      return `<article class="integration-row"><span class="integration-icon">${integration.id === "deepseek" ? "D" : integration.id === "hasura" ? "H" : integration.id === "openshift" ? "O" : "⌘"}</span><div><strong>${escapeHTML(integration.name)}</strong><small>${details}</small></div><span class="asset-state ${configured ? "verified" : "pending"}"><i></i>${configured ? "Configured" : "Not configured"}</span>${canTest ? `<button data-test-integration="${escapeHTML(integration.id)}">Test connection</button>` : ""}</article>`;
     }).join("") || emptyState("No connections listed", "Integration status is not available.");
     $$('[data-test-integration]').forEach((button) => button.addEventListener("click", async () => {
       button.disabled = true;
@@ -460,7 +535,13 @@ $("#global-search").addEventListener("keydown", (event) => {
     loadIOCs(query);
   }
 });
+$("#mobile-menu-toggle").addEventListener("click", () => setMobileNavigation(!dashboard.classList.contains("sidebar-open"), { restoreFocus: true }));
+$("#nav-scrim").addEventListener("click", () => setMobileNavigation(false, { restoreFocus: true }));
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && dashboard.classList.contains("sidebar-open")) {
+    setMobileNavigation(false, { restoreFocus: true });
+    return;
+  }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); $("#global-search").focus(); }
 });
 api("/me").then(showDashboard).catch(showAuth);

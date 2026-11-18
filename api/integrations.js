@@ -10,6 +10,7 @@ export function createIntegrationRouter(auth){
   res.json({integrations:[
    {id:"deepseek",name:"DeepSeek API",state:present("DEEPSEEK_API_KEY")?"configured":"missing",credentialPresent:present("DEEPSEEK_API_KEY"),model:process.env.DEEPSEEK_MODEL||"deepseek-chat",baseUrl:base()},
    {id:"hasura",name:"Hasura GraphQL",state:present("HASURA_GRAPHQL_ENDPOINT")&&present("HASURA_ADMIN_SECRET")?"configured":present("HASURA_GRAPHQL_ENDPOINT")?"partial":"missing",endpointPresent:present("HASURA_GRAPHQL_ENDPOINT"),adminSecretPresent:present("HASURA_ADMIN_SECRET"),jwtSecretPresent:present("HASURA_JWT_SECRET"),endpoint:process.env.HASURA_GRAPHQL_ENDPOINT||""},
+   {id:"openshift",name:"OpenShift API",state:present("OPENSHIFT_USER_TOKEN")?"configured":"missing",credentialPresent:present("OPENSHIFT_USER_TOKEN"),endpoint:"https://api.rm2.thpm.p1.openshiftapps.com:6443"},
    {id:"session",name:"Session signing secret",state:present("SESSION_SECRET")?"configured":"missing"},
    {id:"bootstrap",name:"Owner bootstrap token",state:present("BOOTSTRAP_TOKEN")?"configured":"missing"},
    {id:"github",name:"GitHub App connection",state:"externally-managed",note:"Managed by the GitHub App connector; no personal access token is stored in this application."}
@@ -39,6 +40,20 @@ export function createIntegrationRouter(auth){
    if(!response.ok||body.errors)return res.json({ok:false,state:"error",httpStatus:response.status,message:"Hasura responded, but the health query failed."});
    return res.json({ok:true,state:"valid",httpStatus:response.status,message:"Hasura GraphQL endpoint and admin secret accepted."});
   }catch{return res.json({ok:false,state:"unreachable",message:"Could not reach the configured Hasura endpoint."})}
+  finally{clearTimeout(timer)}
+ });
+ router.post("/openshift/test",auth,roleGuard("owner","admin","analyst"),async(_req,res)=>{
+  const token=process.env.OPENSHIFT_USER_TOKEN?.trim();
+  if(!token)return res.status(409).json({error:"OPENSHIFT_USER_TOKEN is not configured server-side."});
+  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),8000);
+  try{
+   const response=await fetch("https://api.rm2.thpm.p1.openshiftapps.com:6443/apis/user.openshift.io/v1/users/~",{headers:{Authorization:"Bearer "+token,Accept:"application/json"},signal:ctl.signal,redirect:"error"});
+   if(response.status===401||response.status===403)return res.json({ok:false,state:"invalid",httpStatus:response.status,message:"OpenShift rejected the configured token."});
+   if(!response.ok)return res.json({ok:false,state:"error",httpStatus:response.status,message:"OpenShift returned an unsuccessful identity response."});
+   const identity=await response.json().catch(()=>null),username=identity?.metadata?.name;
+   if(typeof username!=="string"||!username)return res.json({ok:false,state:"error",message:"OpenShift returned an unexpected identity response."});
+   return res.json({ok:true,state:"valid",httpStatus:response.status,message:"Authenticated as "+username+"."});
+  }catch{return res.json({ok:false,state:"unreachable",message:"Could not reach the configured OpenShift API."})}
   finally{clearTimeout(timer)}
  });
  return router;

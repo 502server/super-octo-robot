@@ -21,7 +21,7 @@
         <p class="auth-copy">Access your threat intelligence workspace.</p>
         <div class="auth-tabs" role="tablist" aria-label="Workspace access">
           <button type="button" class="auth-tab active" data-tab="login" role="tab" aria-selected="true">Sign in</button>
-          <button type="button" class="auth-tab" data-tab="bootstrap" role="tab" aria-selected="false">Initialize owner</button>
+          <button type="button" class="auth-tab" data-tab="bootstrap" role="tab" aria-selected="false">Enterprise Access</button>
         </div>
         <div class="social-login" id="social-login">
           <button class="provider-button" type="button" data-provider="Google"><span class="google-mark" aria-hidden="true">G</span>Continue with Google</button>
@@ -41,14 +41,16 @@
           <button class="primary-button auth-submit">Initialize workspace <span aria-hidden="true">→</span></button>
         </form>
         <p id="auth-message" class="form-message" role="status" aria-live="polite"></p>
-        <div class="auth-foot"><span class="lock-icon" aria-hidden="true">▣</span> Session protected · Workspace isolated</div>
+        <div class="auth-foot"><span><span class="lock-icon" aria-hidden="true">▣</span> Session protected · Workspace isolated</span><span class="powered-by">Powered by Red Hat &amp; Linux</span></div>
       </div>
       <div class="auth-caption">THREAT INTELLIGENCE · EXPOSURE · RESPONSE</div>
     </section>
 
     <div id="dashboard" class="app-shell hidden">
-      <aside class="sidebar" aria-label="Primary navigation">
+      <button type="button" class="nav-scrim" id="nav-scrim" aria-label="Close navigation menu" hidden></button>
+      <aside id="sidebar" class="sidebar" aria-label="Primary navigation">
         <a class="brand" href="#dashboard" aria-label="Fivezero2 home"><span class="brand-mark">5</span><span>fivezero2<span class="brand-dot">.group</span></span></a>
+        <button type="button" class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Open navigation menu" aria-controls="sidebar" aria-expanded="false"><span class="menu-glyph" aria-hidden="true"></span></button>
         <div class="workspace-switcher"><span class="workspace-avatar">F</span><span class="workspace-label"><strong id="workspace-name">Fivezero2 SOC</strong><small>Threat workspace</small></span><span class="chevron">⌄</span></div>
         <nav id="sidebar-nav" class="sidebar-nav"></nav>
         <div class="sidebar-bottom"><div class="feed-status"><span class="status-orb"></span><span><strong>Workspace online</strong><small id="feed-health">Feeds awaiting configuration</small></span></div><button id="logout" class="profile-button"><span class="profile-avatar" id="profile-avatar">A</span><span class="profile-copy"><strong id="profile-name">Analyst</strong><small id="profile-role">Analyst</small></span><span class="chevron">⋯</span></button></div>
