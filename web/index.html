@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#080d18" />
+    <meta name="theme-color" content="#f5f5f5" />
     <meta name="description" content="Fivezero2 security intelligence workspace for threat monitoring, exposure management, and incident operations." />
     <title>Fivezero2 · Threat intelligence</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,13 +16,19 @@
     <section id="auth" class="auth-screen" aria-labelledby="auth-title">
       <div class="auth-brand"><span class="brand-mark">5</span><span>fivezero2<span class="brand-dot">.group</span></span></div>
       <div class="auth-card">
-        <div class="auth-kicker"><span class="pulse-dot"></span> SECURE WORKSPACE</div>
-        <h1 id="auth-title">Welcome back</h1>
-        <p class="auth-copy">Sign in to your threat intelligence workspace.</p>
+        <div class="auth-kicker"><span class="pulse-dot"></span> FIVEZERO2 SECURITY CONSOLE</div>
+        <h1 id="auth-title">Sign in to your account</h1>
+        <p class="auth-copy">Access your threat intelligence workspace.</p>
         <div class="auth-tabs" role="tablist" aria-label="Workspace access">
           <button type="button" class="auth-tab active" data-tab="login" role="tab" aria-selected="true">Sign in</button>
           <button type="button" class="auth-tab" data-tab="bootstrap" role="tab" aria-selected="false">Initialize owner</button>
         </div>
+        <div class="social-login" id="social-login">
+          <button class="provider-button" type="button" data-provider="Google"><span class="google-mark" aria-hidden="true">G</span>Continue with Google</button>
+          <button class="provider-button" type="button" data-provider="GitHub"><svg class="github-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.56.1.76-.24.76-.54v-2.08c-3.1.68-3.76-1.31-3.76-1.31-.5-1.29-1.24-1.63-1.24-1.63-1.02-.7.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15 1 .1.76 2.02 3.37 1.54.1-.73.4-1.22.72-1.5-2.47-.28-5.07-1.24-5.07-5.5 0-1.22.44-2.22 1.15-3-.12-.28-.5-1.42.11-2.96 0 0 .94-.3 3.05 1.15a10.6 10.6 0 0 1 5.55 0c2.12-1.45 3.05-1.15 3.05-1.15.61 1.54.23 2.68.12 2.96.72.78 1.15 1.78 1.15 3 0 4.27-2.6 5.21-5.08 5.49.4.35.76 1.02.76 2.06v3.06c0 .3.2.64.77.53A11.1 11.1 0 0 0 12 .9Z"/></svg>Continue with GitHub</button>
+          <p class="provider-note">Google and GitHub sign-in are not connected yet.</p>
+        </div>
+        <div class="auth-divider"><span>or sign in with your account</span></div>
         <form id="login-form" class="auth-form">
           <label for="login-username">Username</label><input id="login-username" name="username" autocomplete="username" required />
           <label for="login-password">Password</label><input id="login-password" name="password" type="password" autocomplete="current-password" required />

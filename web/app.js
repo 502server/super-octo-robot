@@ -432,7 +432,12 @@ $$('[data-tab]').forEach((button) => button.addEventListener("click", () => {
   $$('[data-tab]').forEach((tab) => { const selected = tab === button; tab.classList.toggle("active", selected); tab.setAttribute("aria-selected", String(selected)); });
   $("#login-form").classList.toggle("hidden", bootstrap);
   $("#bootstrap-form").classList.toggle("hidden", !bootstrap);
+  $("#social-login").classList.toggle("hidden", bootstrap);
+  $(".auth-divider").classList.toggle("hidden", bootstrap);
   authMessage.textContent = "";
+}));
+$$("[data-provider]").forEach((button) => button.addEventListener("click", () => {
+  authMessage.textContent = `${button.dataset.provider} sign-in has not been configured for this workspace yet.`;
 }));
 $("#login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
