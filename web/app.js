@@ -4,6 +4,20 @@ const auth = $("#auth");
 const dashboard = $("#dashboard");
 const viewRoot = $("#view-root");
 const authMessage = $("#auth-message");
+let currentPage = "dashboard";
+
+function canWriteWorkspace() {
+  return ["owner", "admin", "analyst"].includes(window.currentRole);
+}
+
+function setReadOnly(form) {
+  if (canWriteWorkspace()) return;
+  form.querySelectorAll("input, select, textarea, button").forEach((control) => { control.disabled = true; });
+  const notice = document.createElement("p");
+  notice.className = "form-message";
+  notice.textContent = "Read-only access: ask a workspace analyst, admin, or owner to make changes.";
+  form.insertAdjacentElement("afterend", notice);
+}
 window.oauthProviders = { google: false, github: false };
 const navGroups = [
   { label: "OVERVIEW", items: [["dashboard", "Dashboard", "LayoutDashboard"], ["threat-overview", "Threat overview", "ShieldAlert"], ["hunt-center", "Hunt center", "Crosshair"]] },
@@ -78,6 +92,7 @@ function renderNavigation(active = "dashboard") {
 }
 
 function navigate(page) {
+  currentPage = page;
   const title = pageInfo[page]?.[0] || ({ dashboard: "Dashboard", iocs: "IOC search & enrichment", assets: "Assets & domains", alerts: "Alerts", watchlists: "Watchlists", integrations: "Connections", team: "Team & workspace", audit: "Audit log" })[page] || "Dashboard";
   renderNavigation(page);
   $("#breadcrumb-current").textContent = title;
@@ -91,6 +106,7 @@ function navigate(page) {
   else if (page === "audit") renderAuditPage();
   else if (page === "settings") renderSettingsPage();
   else if (page === "cloud") renderCloudShell();
+  else if (page === "exports") renderExportsPage();
   else renderModulePage(page);
   viewRoot.focus({ preventScroll: true });
 }
@@ -199,6 +215,8 @@ function renderIOCPage() {
     <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">ADD INDICATOR</p><h2>Enrich an IOC</h2></div><span class="subtle-tag">Workspace scoped</span></div><form id="ioc-form" class="inline-form"><label>Type<select name="type"><option value="domain">Domain</option><option value="ip">IP address</option><option value="url">URL</option><option value="hash">File hash</option><option value="email">Email</option><option value="cert">Certificate</option></select></label><label class="wide-field">Indicator value<input name="value" placeholder="suspicious.example" required minlength="3" maxlength="2048" /></label><label>Confidence<input name="confidence" type="number" min="0" max="100" value="50" /></label><label>Severity<select name="severity"><option>low</option><option selected>medium</option><option>high</option><option>critical</option></select></label><label>Source<input name="source" value="manual" maxlength="120" /></label><button class="primary-button">Add indicator <span>→</span></button></form><p id="ioc-message" class="form-message" role="status"></p></section>\n    <details class="surface-card bulk-import-card"><summary><span><strong>Bulk import</strong><small>Paste a JSON array of up to 500 indicators</small></span><span class="details-chevron" aria-hidden="true">⌄</span></summary><form id="bulk-ioc-form" class="bulk-import-form"><label for="bulk-ioc-input">Indicator records</label><textarea id="bulk-ioc-input" name="items" rows="6" placeholder='[{"type":"domain","value":"suspicious.example","source":"analyst","severity":"high","confidence":80}]' required></textarea><p class="helper-copy">Each record needs a supported type and value. Available types: IP, domain, URL, hash, email, certificate.</p><div class="form-footer"><p id="bulk-ioc-message" class="form-message" role="status"></p><button class="primary-button">Import indicators <span>→</span></button></div></form></details>\n    <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">INDICATOR LIBRARY</p><h2>Tracked indicators</h2></div><div class="table-actions"><label class="table-search"><span aria-hidden="true">⌕</span><input id="ioc-filter" type="search" placeholder="Filter indicators" aria-label="Filter indicators" /></label><button type="button" class="secondary-button compact-button" id="export-iocs">↓ <span>Export CSV</span></button><button type="button" class="secondary-button compact-button" id="export-iocs-json">↓ <span>Export JSON</span></button></div></div><div id="ioc-table" class="table-wrap"></div></section>`;
   $("#ioc-form").addEventListener("submit", createIOC);
   $("#bulk-ioc-form").addEventListener("submit", importBulkIOCs);
+  setReadOnly($("#ioc-form"));
+  setReadOnly($("#bulk-ioc-form"));
   $("#export-iocs").addEventListener("click", () => exportIOCs("csv"));
   $("#export-iocs-json").addEventListener("click", () => exportIOCs("json"));
   $("#refresh-iocs").addEventListener("click", loadIOCs);
@@ -231,10 +249,10 @@ function csvCell(value) {
 }
 
 async function exportIOCs(format) {
-  const buttons = [$("#export-iocs"), $("#export-iocs-json")];
+  const buttons = [$("#export-iocs"), $("#export-iocs-json"), $("#export-iocs-csv"), $("#export-iocs-json-download")].filter(Boolean);
   buttons.forEach((button) => { button.disabled = true; });
   try {
-    const query = $("#ioc-filter").value.trim();
+    const query = $("#ioc-filter")?.value.trim() || "";
     const { iocs } = await api(`/intel/iocs${query ? `?q=${encodeURIComponent(query)}` : ""}`);
     const isJSON = format === "json";
     let content;
@@ -253,7 +271,9 @@ async function exportIOCs(format) {
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (error) {
-    $("#bulk-ioc-message").textContent = error.message;
+    const message = $("#bulk-ioc-message");
+    if (message) message.textContent = error.message;
+    else viewRoot.insertAdjacentHTML("afterbegin", `<div class="inline-error">${escapeHTML(error.message)}</div>`);
   } finally { buttons.forEach((button) => { button.disabled = false; }); }
 }
 
@@ -261,10 +281,19 @@ async function loadIOCs(query = "") {
   try {
     const result = await api(`/intel/iocs${query ? `?q=${encodeURIComponent(query)}` : ""}`);
     $("#ioc-table").innerHTML = result.iocs.length ? `<table><thead><tr><th>Indicator</th><th>Confidence</th><th>Severity</th><th>Last seen</th><th>Watchlist</th></tr></thead><tbody>${result.iocs.slice(0, 100).map((ioc) => `<tr><td><span class="ioc-type">${escapeHTML(ioc.type)}</span><code>${escapeHTML(ioc.value)}</code>${ioc.tags?.length ? `<small>${ioc.tags.map(escapeHTML).join(", ")}</small>` : ""}</td><td>${Number(ioc.confidence)}%</td><td><span class="severity-pill ${escapeHTML(ioc.severity)}">${escapeHTML(ioc.severity)}</span></td><td>${formatDate(ioc.lastSeen)}</td><td><button class="watch-toggle ${ioc.watchlisted ? "selected" : ""}" data-watch="${escapeHTML(ioc.id)}" aria-label="${ioc.watchlisted ? "Remove from" : "Add to"} watchlist">${ioc.watchlisted ? "★ Watching" : "☆ Add"}</button></td></tr>`).join("")}</tbody></table>` : emptyState("No indicators found", "Add an IOC above or adjust your search.");
-    $$('[data-watch]', $("#ioc-table")).forEach((button) => button.addEventListener("click", async () => {
-      await api(`/intel/iocs/${encodeURIComponent(button.dataset.watch)}`, { method: "PATCH", body: JSON.stringify({ watchlisted: !button.classList.contains("selected") }) });
-      loadIOCs($("#ioc-filter").value);
-    }));
+    $$('[data-watch]', $("#ioc-table")).forEach((button) => {
+      button.disabled = !canWriteWorkspace();
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          await api(`/intel/iocs/${encodeURIComponent(button.dataset.watch)}`, { method: "PATCH", body: JSON.stringify({ watchlisted: !button.classList.contains("selected") }) });
+          loadIOCs($("#ioc-filter").value);
+        } catch (error) {
+          $("#ioc-message").textContent = error.message;
+          button.disabled = !canWriteWorkspace();
+        }
+      });
+    });
   } catch (error) { $("#ioc-table").innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`; }
 }
 
@@ -286,6 +315,7 @@ function renderAlertsPage() {
     <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">MANUAL TRIAGE SIGNAL</p><h2>Create an alert</h2></div></div><form id="alert-form" class="inline-form alert-form"><label class="wide-field">Title<input name="title" required minlength="3" maxlength="180" placeholder="Describe the detection" /></label><label>Severity<select name="severity"><option>low</option><option>medium</option><option>high</option><option>critical</option></select></label><label>Source<input name="source" value="manual" /></label><label class="wide-field">Description<input name="description" maxlength="2000" placeholder="Optional investigation context" /></label><button class="primary-button">Create alert <span>→</span></button></form></section>
     <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">WORKSPACE ALERTS</p><h2>All alerts</h2></div><label class="table-search"><span aria-hidden="true">⌕</span><input id="alert-filter" type="search" placeholder="Filter alerts" aria-label="Filter alerts" /></label></div><div id="alerts-list" class="alert-list full-alert-list"></div></section>`;
   $("#alert-form").addEventListener("submit", createAlert);
+  setReadOnly($("#alert-form"));
   $("#refresh-alerts").addEventListener("click", loadAlerts);
   $("#alert-filter").addEventListener("input", (event) => loadAlerts(event.target.value));
   loadAlerts();
@@ -295,7 +325,7 @@ async function loadAlerts(query = "") {
   try {
     const { alerts } = await api("/intel/alerts");
     const filtered = alerts.filter((alert) => `${alert.title} ${alert.description} ${alert.source} ${alert.severity} ${alert.status}`.toLowerCase().includes(query.toLowerCase()));
-    $("#alerts-list").innerHTML = filtered.length ? filtered.map((alert) => `<article class="alert-row alert-row-full"><span class="severity-mark ${escapeHTML(alert.severity)}"></span><div class="alert-copy"><strong>${escapeHTML(alert.title)}</strong><small>${escapeHTML(alert.description || "No description provided")} · ${escapeHTML(alert.source || "Manual")}</small></div><span class="severity-pill ${escapeHTML(alert.severity)}">${escapeHTML(alert.severity)}</span><span class="status-pill ${escapeHTML(alert.status)}">${escapeHTML(alert.status.replaceAll("_", " "))}</span><time>${formatTime(alert.createdAt)}</time><div class="alert-actions">${alert.status === "open" ? `<button data-alert-status="acknowledged" data-alert-id="${escapeHTML(alert.id)}">Acknowledge</button>` : ""}${!["resolved", "false_positive"].includes(alert.status) ? `<button data-alert-status="investigating" data-alert-id="${escapeHTML(alert.id)}">Investigate</button><button data-alert-status="resolved" data-alert-id="${escapeHTML(alert.id)}">Resolve</button>` : ""}</div></article>`).join("") : emptyState("Nothing in the queue", "Alerts in this workspace will appear here.");
+    $("#alerts-list").innerHTML = filtered.length ? filtered.map((alert) => `<article class="alert-row alert-row-full"><span class="severity-mark ${escapeHTML(alert.severity)}"></span><div class="alert-copy"><strong>${escapeHTML(alert.title)}</strong><small>${escapeHTML(alert.description || "No description provided")} · ${escapeHTML(alert.source || "Manual")}</small></div><span class="severity-pill ${escapeHTML(alert.severity)}">${escapeHTML(alert.severity)}</span><span class="status-pill ${escapeHTML(alert.status)}">${escapeHTML(alert.status.replaceAll("_", " "))}</span><time>${formatTime(alert.createdAt)}</time><div class="alert-actions">${alert.status === "open" ? `<button data-alert-status="acknowledged" data-alert-id="${escapeHTML(alert.id)}" ${canWriteWorkspace() ? "" : "disabled"}>Acknowledge</button>` : ""}${!["resolved", "false_positive"].includes(alert.status) ? `<button data-alert-status="investigating" data-alert-id="${escapeHTML(alert.id)}" ${canWriteWorkspace() ? "" : "disabled"}>Investigate</button><button data-alert-status="resolved" data-alert-id="${escapeHTML(alert.id)}" ${canWriteWorkspace() ? "" : "disabled"}>Resolve</button>` : ""}</div></article>`).join("") : emptyState("Nothing in the queue", "Alerts in this workspace will appear here.");
     $$('[data-alert-id]', $("#alerts-list")).forEach((button) => button.addEventListener("click", async () => {
       try { await api(`/intel/alerts/${encodeURIComponent(button.dataset.alertId)}`, { method: "PATCH", body: JSON.stringify({ status: button.dataset.alertStatus }) }); loadAlerts($("#alert-filter").value); }
       catch (error) { viewRoot.insertAdjacentHTML("afterbegin", `<div class="inline-error">${escapeHTML(error.message)}</div>`); }
@@ -316,6 +346,7 @@ function renderAssetsPage(page = "assets", showFindings = false) {
     <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">REGISTERED ASSETS</p><h2>Asset inventory</h2></div></div><div id="assets-list" class="asset-management-list"></div></section>
     <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">EXPOSURE FINDINGS</p><h2>Open findings</h2></div></div><div id="findings-list" class="findings-list"></div></section>`;
   $("#asset-form").addEventListener("submit", createAsset);
+  setReadOnly($("#asset-form"));
   $("#refresh-assets").addEventListener("click", loadAssets);
   loadAssets(showFindings);
 }
@@ -325,20 +356,30 @@ async function loadAssets(showFindings = false) {
     const [{ assets }, { findings }] = await Promise.all([api("/assets"), api("/findings")]);
     $("#assets-list").innerHTML = assets.length ? assets.map((asset) => `<article class="asset-management-row"><span class="asset-icon">${iconMarkup("Globe", "asset-svg-icon", "muted")}</span><div class="asset-management-copy"><strong>${escapeHTML(asset.name)}</strong><small>${escapeHTML(asset.url)}${asset.notes ? ` · ${escapeHTML(asset.notes)}` : ""}</small>${asset.verified ? `<small>Ownership verified ${formatDate(asset.verifiedAt)}</small>` : `<small class="verification-record">Add TXT record <code>_fivezero2-verify.${escapeHTML(new URL(asset.url).hostname)}</code> with challenge <code>${escapeHTML(asset.challenge)}</code></small>`}</div><span class="asset-state ${asset.verified ? "verified" : "pending"}"><i></i>${asset.verified ? "Verified" : "Unverified"}</span><div class="asset-buttons">${asset.verified ? `<button data-check-asset="${escapeHTML(asset.id)}">Run passive check</button>` : `<button data-verify-asset="${escapeHTML(asset.id)}">Verify DNS</button>`}</div></article>`).join("") : emptyState("No assets registered", "Register a domain you own. DNS verification is required before passive checks.");
     $("#findings-list").innerHTML = findings.length ? findings.map((finding) => `<article class="finding-row"><span class="severity-mark ${escapeHTML(finding.severity)}"></span><div><strong>${escapeHTML(finding.title || finding.name)}</strong><small>${escapeHTML(finding.description || "No additional detail")}</small></div><span class="severity-pill ${escapeHTML(finding.severity)}">${escapeHTML(finding.severity)}</span><span class="status-pill">${escapeHTML(finding.status)}</span>${finding.status === "open" ? `<select data-finding-id="${escapeHTML(finding.id)}" aria-label="Update finding status"><option value="open" selected>Open</option><option value="accepted">Accepted</option><option value="fixed">Fixed</option><option value="false_positive">False positive</option></select>` : ""}</article>`).join("") : emptyState("No findings recorded", "Findings from authorized asset checks will appear here.");
-    $$('[data-verify-asset]', $("#assets-list")).forEach((button) => button.addEventListener("click", async () => {
-      try { await api(`/assets/${encodeURIComponent(button.dataset.verifyAsset)}/verify`, { method: "POST" }); loadAssets(); }
-      catch (error) { $("#asset-message").textContent = error.message; }
-    }));
-    $$('[data-check-asset]', $("#assets-list")).forEach((button) => button.addEventListener("click", async () => {
-      button.disabled = true;
-      try { const { result } = await api(`/assets/${encodeURIComponent(button.dataset.checkAsset)}/check`, { method: "POST" }); $("#asset-message").textContent = `Passive check complete · HTTP ${result.status ?? "unavailable"} · ${result.ok ? "reachable" : "not reachable"}`; }
-      catch (error) { $("#asset-message").textContent = error.message; }
-      finally { button.disabled = false; }
-    }));
-    $$('[data-finding-id]').forEach((select) => select.addEventListener("change", async () => {
-      try { await api(`/findings/${encodeURIComponent(select.dataset.findingId)}`, { method: "PATCH", body: JSON.stringify({ status: select.value }) }); loadAssets(); }
-      catch (error) { $("#asset-message").textContent = error.message; }
-    }));
+    $$('[data-verify-asset]', $("#assets-list")).forEach((button) => {
+      button.disabled = !canWriteWorkspace();
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try { await api(`/assets/${encodeURIComponent(button.dataset.verifyAsset)}/verify`, { method: "POST" }); loadAssets(); }
+        catch (error) { $("#asset-message").textContent = error.message; button.disabled = !canWriteWorkspace(); }
+      });
+    });
+    $$('[data-check-asset]', $("#assets-list")).forEach((button) => {
+      button.disabled = !canWriteWorkspace();
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try { const { result } = await api(`/assets/${encodeURIComponent(button.dataset.checkAsset)}/check`, { method: "POST" }); $("#asset-message").textContent = `Passive check complete · HTTP ${result.status ?? "unavailable"} · ${result.ok ? "reachable" : "not reachable"}`; }
+        catch (error) { $("#asset-message").textContent = error.message; }
+        finally { button.disabled = !canWriteWorkspace(); }
+      });
+    });
+    $$('[data-finding-id]').forEach((select) => {
+      select.disabled = !canWriteWorkspace();
+      select.addEventListener("change", async () => {
+        try { await api(`/findings/${encodeURIComponent(select.dataset.findingId)}`, { method: "PATCH", body: JSON.stringify({ status: select.value }) }); loadAssets(); }
+        catch (error) { $("#asset-message").textContent = error.message; }
+      });
+    });
     if (showFindings) $("#findings-list").scrollIntoView({ behavior: "smooth", block: "center" });
   } catch (error) { $("#assets-list").innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`; }
 }
@@ -357,8 +398,16 @@ async function renderWatchlistsPage() {
   loadWatchlists();
 }
 async function loadWatchlists() {
-  try { const { iocs } = await api("/intel/iocs"); const watched = iocs.filter((ioc) => ioc.watchlisted); $("#watchlist-table").innerHTML = watched.length ? `<table><thead><tr><th>Indicator</th><th>Confidence</th><th>Last seen</th><th></th></tr></thead><tbody>${watched.map((ioc) => `<tr><td><span class="ioc-type">${escapeHTML(ioc.type)}</span><code>${escapeHTML(ioc.value)}</code></td><td>${ioc.confidence}%</td><td>${formatDate(ioc.lastSeen)}</td><td><button class="watch-toggle selected" data-unwatch="${escapeHTML(ioc.id)}">★ Remove</button></td></tr>`).join("")}</tbody></table>` : emptyState("Your watchlist is clear", "Add indicators to your watchlist from IOC search."); $$('[data-unwatch]').forEach((button) => button.addEventListener("click", async () => { await api(`/intel/iocs/${encodeURIComponent(button.dataset.unwatch)}`, { method: "PATCH", body: JSON.stringify({ watchlisted: false }) }); loadWatchlists(); })); }
-  catch (error) { $("#watchlist-table").innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`; }
+  try {
+    const { iocs } = await api("/intel/iocs");
+    const watched = iocs.filter((ioc) => ioc.watchlisted);
+    $("#watchlist-table").innerHTML = watched.length ? `<table><thead><tr><th>Indicator</th><th>Confidence</th><th>Last seen</th><th></th></tr></thead><tbody>${watched.map((ioc) => `<tr><td><span class="ioc-type">${escapeHTML(ioc.type)}</span><code>${escapeHTML(ioc.value)}</code></td><td>${ioc.confidence}%</td><td>${formatDate(ioc.lastSeen)}</td><td><button class="watch-toggle selected" data-unwatch="${escapeHTML(ioc.id)}" ${canWriteWorkspace() ? "" : "disabled"}>★ Remove</button></td></tr>`).join("")}</tbody></table>` : emptyState("Your watchlist is clear", "Add indicators to your watchlist from IOC search.");
+    $$('[data-unwatch]').forEach((button) => button.addEventListener("click", async () => {
+      button.disabled = true;
+      try { await api(`/intel/iocs/${encodeURIComponent(button.dataset.unwatch)}`, { method: "PATCH", body: JSON.stringify({ watchlisted: false }) }); loadWatchlists(); }
+      catch (error) { $("#watchlist-table").insertAdjacentHTML("afterbegin", `<div class="inline-error">${escapeHTML(error.message)}</div>`); button.disabled = !canWriteWorkspace(); }
+    }));
+  } catch (error) { $("#watchlist-table").innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`; }
 }
 
 function renderCloudShell() {
@@ -469,7 +518,7 @@ async function loadIntegrations() {
 
 async function renderTeamPage() {
   viewRoot.innerHTML = `${pageHeading("ADMIN / ACCESS CONTROL", "Team & workspace", "Manage workspace membership and least-privilege access.")}
-    <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">INVITE A COLLEAGUE</p><h2>Create a one-time invitation</h2></div></div><form id="invite-form" class="inline-form"><label>Workspace role<select name="role"><option value="viewer">Viewer</option><option value="analyst">Analyst</option><option value="admin">Admin</option></select></label><button class="primary-button">Create invitation <span>→</span></button></form><p id="invite-result" class="form-message" role="status"></p></section>
+    <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">INVITE A COLLEAGUE</p><h2>Create a one-time invitation</h2></div></div><form id="invite-form" class="inline-form"><label>Workspace role<select name="role"><option value="viewer">Viewer</option><option value="analyst">Analyst</option><option value="admin" ${window.currentRole === "admin" ? "disabled" : ""}>Admin</option></select></label><button class="primary-button">Create invitation <span>→</span></button></form><p id="invite-result" class="form-message" role="status"></p></section>
     <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">MEMBERS</p><h2>Workspace access</h2></div><button class="secondary-button" id="refresh-team">${iconMarkup("RefreshCw", "button-svg-icon", "muted")} <span>Refresh</span></button></div><div id="member-list" class="integration-list"></div></section>`;
   $("#refresh-team").addEventListener("click", loadTeam);
   $("#invite-form").addEventListener("submit", async (event) => { event.preventDefault(); try { const result = await api("/workspace/invitations", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) }); $("#invite-result").textContent = `One-time token (expires ${formatDate(result.invitation.expiresAt)}): ${result.invitation.token}. Copy it now; it will not be shown again.`; } catch (error) { $("#invite-result").textContent = error.message; } });
@@ -496,6 +545,15 @@ async function loadAudit() {
   catch (error) { $("#audit-list").innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`; }
 }
 
+function renderExportsPage() {
+  viewRoot.innerHTML = `${pageHeading("INTEGRATIONS / DATA PORTABILITY", "Data export", "Download workspace-scoped indicators or a complete security snapshot.")}
+    <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">WORKSPACE SNAPSHOT</p><h2>Export current workspace data</h2></div></div><p class="page-subtitle">The JSON snapshot includes summary metrics, alerts, indicators, and assets. DNS verification challenges are excluded.</p><button class="primary-button" id="export-workspace-snapshot">Download snapshot <span>→</span></button></section>
+    <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">INDICATOR DATA</p><h2>Export indicators</h2></div></div><p class="page-subtitle">Download all indicators in this workspace as a spreadsheet-friendly CSV or JSON file.</p><div class="quick-actions"><button class="secondary-button" id="export-iocs-csv">Download CSV</button><button class="secondary-button" id="export-iocs-json-download">Download JSON</button></div></section>`;
+  $("#export-workspace-snapshot").addEventListener("click", exportSnapshot);
+  $("#export-iocs-csv").addEventListener("click", () => exportIOCs("csv"));
+  $("#export-iocs-json-download").addEventListener("click", () => exportIOCs("json"));
+}
+
 function emptyState(title, body) { return `<div class="empty-state"><span class="empty-mark">${iconMarkup("CircleHelp", "empty-svg-icon", "muted")}</span><strong>${title}</strong><p>${body}</p></div>`; }
 function formatTime(value) { if (!value) return "—"; return new Date(value).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
 function formatDate(value) { if (!value) return "—"; return new Date(value).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" }); }
@@ -503,9 +561,9 @@ function formatDate(value) { if (!value) return "—"; return new Date(value).to
 async function exportSnapshot() {
   try {
     const [summary, alertResponse, iocResponse, assetResponse] = await Promise.all([api("/intel/summary"), api("/intel/alerts"), api("/intel/iocs"), api("/assets")]);
-    const report = { generatedAt: new Date().toISOString(), workspace: $("#scope-name").textContent, summary: summary.summary, alerts: alertResponse.alerts, indicators: iocResponse.iocs, assets: assetResponse.assets.map(({ challenge, ...asset }) => asset) };
+    const report = { generatedAt: new Date().toISOString(), workspace: $("#scope-name")?.textContent || "Current workspace", summary: summary.summary, alerts: alertResponse.alerts, indicators: iocResponse.iocs, assets: assetResponse.assets.map(({ challenge, ...asset }) => asset) };
     const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
-    const link = document.createElement("a"); link.href = url; link.download = `fivezero2-security-snapshot-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(url);
+    const link = document.createElement("a"); link.href = url; link.download = `fivezero2-security-snapshot-${new Date().toISOString().slice(0, 10)}.json`; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (error) { viewRoot.insertAdjacentHTML("afterbegin", `<div class="inline-error">${escapeHTML(error.message)}</div>`); }
 }
 
@@ -622,9 +680,9 @@ $("#logout").addEventListener("click", async () => {
     await api("/session/logout", { method: "POST" });
   } finally { window.currentUser = null; showAuth(); }
 });
-$("#refresh").addEventListener("click", () => navigate("dashboard"));
+$("#refresh").addEventListener("click", () => navigate(currentPage));
 $("#global-search").addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.nativeEvent?.isComposing && event.keyCode !== 229) {
+  if (event.key === "Enter" && !event.isComposing && event.keyCode !== 229) {
     const query = event.currentTarget.value.trim();
     if (!query) return;
     navigate("iocs");
