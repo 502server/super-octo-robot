@@ -4,14 +4,15 @@ const auth = $("#auth");
 const dashboard = $("#dashboard");
 const viewRoot = $("#view-root");
 const authMessage = $("#auth-message");
+window.oauthProviders = { google: false, github: false };
 const navGroups = [
-  { label: "OVERVIEW", items: [["dashboard", "Dashboard", "DB"], ["threat-overview", "Threat overview", "TR"], ["hunt-center", "Hunt center", "HN"]] },
-  { label: "INTELLIGENCE", items: [["iocs", "IOC search", "IOC"], ["actors", "Threat actors", "TA"], ["campaigns", "Campaigns", "CA"], ["feeds", "Feeds & sources", "FS"], ["mitre", "MITRE ATT&CK", "MIT"]] },
-  { label: "EXPOSURE", items: [["attack-surface", "Attack surface", "AS"], ["assets", "Assets & domains", "AD"], ["vulnerabilities", "Vulnerabilities", "VUL"], ["cloud", "Cloud exposure", "CL"]] },
-  { label: "MONITORING", items: [["dark-web", "Dark web", "DW"], ["credentials", "Credential leaks", "CR"], ["brand", "Brand protection", "BR"], ["phishing", "Phishing detection", "PH"], ["watchlists", "Watchlists", "WL"]] },
-  { label: "OPERATIONS", items: [["alerts", "Alerts", "AL"], ["cases", "Cases & incidents", "CI"], ["reports", "Reports", "RP"], ["tasks", "Task queue", "TQ"]] },
-  { label: "INTEGRATIONS", items: [["integrations", "Connections", "CN"], ["exports", "Data export", "EX"]] },
-  { label: "ADMIN", items: [["team", "Team & workspace", "TM"], ["audit", "Audit log", "AU"], ["settings", "Settings", "ST"]] },
+  { label: "OVERVIEW", items: [["dashboard", "Dashboard", "LayoutDashboard"], ["threat-overview", "Threat overview", "ShieldAlert"], ["hunt-center", "Hunt center", "Crosshair"]] },
+  { label: "INTELLIGENCE", items: [["iocs", "IOC search", "ScanSearch"], ["actors", "Threat actors", "Users"], ["campaigns", "Campaigns", "Megaphone"], ["feeds", "Feeds & sources", "Radio"], ["mitre", "MITRE ATT&CK", "Workflow"]] },
+  { label: "EXPOSURE", items: [["attack-surface", "Attack surface", "ScanEye"], ["assets", "Assets & domains", "Globe"], ["vulnerabilities", "Vulnerabilities", "Bug"], ["cloud", "Cloud exposure", "Cloud"]] },
+  { label: "MONITORING", items: [["dark-web", "Dark web", "Eye"], ["credentials", "Credential leaks", "KeyRound"], ["brand", "Brand protection", "BadgeCheck"], ["phishing", "Phishing detection", "Fish"], ["watchlists", "Watchlists", "ListChecks"]] },
+  { label: "OPERATIONS", items: [["alerts", "Alerts", "Bell"], ["cases", "Cases & incidents", "BriefcaseBusiness"], ["reports", "Reports", "FileChartColumn"], ["tasks", "Task queue", "ListTodo"]] },
+  { label: "INTEGRATIONS", items: [["integrations", "Connections", "PlugZap"], ["exports", "Data export", "Download"]] },
+  { label: "ADMIN", items: [["team", "Team & workspace", "UsersRound"], ["audit", "Audit log", "ClipboardList"], ["settings", "Settings", "Settings"]] },
 ];
 const pageInfo = {
   "threat-overview": ["Threat overview", "Strategic context for the threats most relevant to your organization.", "Intelligence sources"],
@@ -36,6 +37,11 @@ const pageInfo = {
 
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
+
+function iconMarkup(name, className = "", tone = "muted") {
+  const safeTone = ["muted", "accent", "critical", "white", "blue", "amber"].includes(tone) ? tone : "muted";
+  return `<img class="${escapeHTML(className)}" src="/icons/${encodeURIComponent(name)}.svg?tone=${safeTone}" alt="" aria-hidden="true" />`;
 }
 
 async function api(path, options = {}) {
@@ -63,7 +69,7 @@ function setMobileNavigation(open, { restoreFocus = false } = {}) {
 function renderNavigation(active = "dashboard") {
   $("#sidebar-nav").innerHTML = navGroups.map((group) => `
     <div class="nav-group"><p class="nav-label">${group.label}</p>
-      ${group.items.map(([id, label, icon]) => `<button type="button" class="nav-link ${id === active ? "active" : ""}" data-page="${id}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}" ${id === active ? 'aria-current="page"' : ""}><span class="nav-icon" aria-hidden="true">${icon}</span><span>${escapeHTML(label)}</span>${id === "alerts" ? '<span class="nav-count" id="nav-alert-count">0</span>' : ""}</button>`).join("")}
+      ${group.items.map(([id, label, icon]) => `<button type="button" class="nav-link ${id === active ? "active" : ""}" data-page="${id}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}" ${id === active ? 'aria-current="page"' : ""}>${iconMarkup(icon, "nav-icon", id === active ? "accent" : "muted")}<span>${escapeHTML(label)}</span>${id === "alerts" ? '<span class="nav-count" id="nav-alert-count">0</span>' : ""}</button>`).join("")}
     </div>`).join("");
   $$('[data-page]', $("#sidebar-nav")).forEach((button) => button.addEventListener("click", () => {
     navigate(button.dataset.page);
@@ -83,6 +89,7 @@ function navigate(page) {
   else if (page === "integrations") renderIntegrationsPage();
   else if (page === "team") renderTeamPage();
   else if (page === "audit") renderAuditPage();
+  else if (page === "settings") renderSettingsPage();
   else if (page === "cloud") renderCloudShell();
   else renderModulePage(page);
   viewRoot.focus({ preventScroll: true });
@@ -92,8 +99,9 @@ function pageHeading(eyebrow, title, subtitle, action = "") {
   return `<div class="page-heading"><div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p class="page-subtitle">${subtitle}</p></div>${action}</div>`;
 }
 
-function metricCard(label, value, note, tone = "cyan", icon = "◈") {
-  return `<article class="metric-card"><div class="metric-top"><span>${label}</span><span class="metric-icon ${tone}">${icon}</span></div><div class="metric-value">${value}</div><div class="metric-note">${note}</div></article>`;
+function metricCard(label, value, note, tone = "cyan", icon = "Activity") {
+  const iconTone = ({ cyan: "accent", red: "critical", blue: "blue", amber: "amber", muted: "muted" })[tone] || "muted";
+  return `<article class="metric-card"><div class="metric-top"><span>${label}</span><span class="metric-icon ${tone}">${iconMarkup(icon, "metric-svg-icon", iconTone)}</span></div><div class="metric-value">${value}</div><div class="metric-note">${note}</div></article>`;
 }
 
 function renderDashboard() {
@@ -129,12 +137,12 @@ async function loadDashboardData() {
     const findings = findingData.findings.filter((finding) => finding.status === "open");
     const openExposure = findings.filter((finding) => finding.severity === "critical" || finding.severity === "high").length;
     $("#metric-grid").innerHTML = [
-      metricCard("OPEN ALERTS", activeAlerts.length, `${critical} critical · ${activeAlerts.length - critical} other priorities`, critical ? "red" : "cyan", "◉"),
-      metricCard("CRITICAL ALERTS", critical, "Active alerts marked critical", critical ? "red" : "cyan", "!"),
-      metricCard("TRACKED INDICATORS", summary.iocCount, `${summary.watchlisted} watchlisted · analyst-provided`, "blue", "⌗"),
-      metricCard("CRITICAL EXPOSURE", openExposure, `${findings.length} open findings across assets`, openExposure ? "amber" : "cyan", "△"),
-      metricCard("DARK WEB MENTIONS", "—", "No authorized source connected", "muted", "◌"),
-      metricCard("PHISHING SIGNALS", "—", "No authorized source connected", "muted", "◌"),
+      metricCard("OPEN ALERTS", activeAlerts.length, `${critical} critical · ${activeAlerts.length - critical} other priorities`, critical ? "red" : "cyan", "Bell"),
+      metricCard("CRITICAL ALERTS", critical, "Active alerts marked critical", critical ? "red" : "cyan", "ShieldAlert"),
+      metricCard("TRACKED INDICATORS", summary.iocCount, `${summary.watchlisted} watchlisted · analyst-provided`, "blue", "ScanSearch"),
+      metricCard("CRITICAL EXPOSURE", openExposure, `${findings.length} open findings across assets`, openExposure ? "amber" : "cyan", "Shield"),
+      metricCard("DARK WEB MENTIONS", "—", "No authorized source connected", "muted", "Eye"),
+      metricCard("PHISHING SIGNALS", "—", "No authorized source connected", "muted", "Fish"),
     ].join("");
     $("#nav-alert-count").textContent = activeAlerts.length;
     $("#recent-alert-count").textContent = activeAlerts.length;
@@ -175,7 +183,7 @@ function renderTopAssets(assets, findings) {
   const visible = assets.slice(0, 4);
   $("#top-assets").innerHTML = visible.length ? visible.map((asset) => {
     const related = findings.filter((finding) => finding.assetId === asset.id).length;
-    return `<div class="asset-row"><span class="asset-icon">${asset.url.startsWith("https:") ? "⌑" : "◇"}</span><div><strong>${escapeHTML(asset.name)}</strong><small>${escapeHTML(new URL(asset.url).hostname)}</small></div><span class="asset-state ${asset.verified ? "verified" : "pending"}"><i></i>${asset.verified ? "Verified" : "Pending"}</span><span class="asset-findings">${related || "—"}</span></div>`;
+    return `<div class="asset-row"><span class="asset-icon">${iconMarkup("Globe", "asset-svg-icon", asset.url.startsWith("https:") ? "accent" : "muted")}</span><div><strong>${escapeHTML(asset.name)}</strong><small>${escapeHTML(new URL(asset.url).hostname)}</small></div><span class="asset-state ${asset.verified ? "verified" : "pending"}"><i></i>${asset.verified ? "Verified" : "Pending"}</span><span class="asset-findings">${related || "—"}</span></div>`;
   }).join("") : emptyState("No assets registered", "Add an organization-owned domain to begin tracking exposure.");
   $("#finding-summary").innerHTML = `<span class="mini-dot coral"></span><span>${findings.length} open finding${findings.length === 1 ? "" : "s"}</span><span class="finding-divider"></span><button class="quiet-link" id="view-findings">View findings →</button>`;
   $("#view-findings").addEventListener("click", () => renderAssetsPage("assets", true));
@@ -315,7 +323,7 @@ function renderAssetsPage(page = "assets", showFindings = false) {
 async function loadAssets(showFindings = false) {
   try {
     const [{ assets }, { findings }] = await Promise.all([api("/assets"), api("/findings")]);
-    $("#assets-list").innerHTML = assets.length ? assets.map((asset) => `<article class="asset-management-row"><span class="asset-icon">◇</span><div class="asset-management-copy"><strong>${escapeHTML(asset.name)}</strong><small>${escapeHTML(asset.url)}${asset.notes ? ` · ${escapeHTML(asset.notes)}` : ""}</small>${asset.verified ? `<small>Ownership verified ${formatDate(asset.verifiedAt)}</small>` : `<small class="verification-record">Add TXT record <code>_fivezero2-verify.${escapeHTML(new URL(asset.url).hostname)}</code> with challenge <code>${escapeHTML(asset.challenge)}</code></small>`}</div><span class="asset-state ${asset.verified ? "verified" : "pending"}"><i></i>${asset.verified ? "Verified" : "Unverified"}</span><div class="asset-buttons">${asset.verified ? `<button data-check-asset="${escapeHTML(asset.id)}">Run passive check</button>` : `<button data-verify-asset="${escapeHTML(asset.id)}">Verify DNS</button>`}</div></article>`).join("") : emptyState("No assets registered", "Register a domain you own. DNS verification is required before passive checks.");
+    $("#assets-list").innerHTML = assets.length ? assets.map((asset) => `<article class="asset-management-row"><span class="asset-icon">${iconMarkup("Globe", "asset-svg-icon", "muted")}</span><div class="asset-management-copy"><strong>${escapeHTML(asset.name)}</strong><small>${escapeHTML(asset.url)}${asset.notes ? ` · ${escapeHTML(asset.notes)}` : ""}</small>${asset.verified ? `<small>Ownership verified ${formatDate(asset.verifiedAt)}</small>` : `<small class="verification-record">Add TXT record <code>_fivezero2-verify.${escapeHTML(new URL(asset.url).hostname)}</code> with challenge <code>${escapeHTML(asset.challenge)}</code></small>`}</div><span class="asset-state ${asset.verified ? "verified" : "pending"}"><i></i>${asset.verified ? "Verified" : "Unverified"}</span><div class="asset-buttons">${asset.verified ? `<button data-check-asset="${escapeHTML(asset.id)}">Run passive check</button>` : `<button data-verify-asset="${escapeHTML(asset.id)}">Verify DNS</button>`}</div></article>`).join("") : emptyState("No assets registered", "Register a domain you own. DNS verification is required before passive checks.");
     $("#findings-list").innerHTML = findings.length ? findings.map((finding) => `<article class="finding-row"><span class="severity-mark ${escapeHTML(finding.severity)}"></span><div><strong>${escapeHTML(finding.title || finding.name)}</strong><small>${escapeHTML(finding.description || "No additional detail")}</small></div><span class="severity-pill ${escapeHTML(finding.severity)}">${escapeHTML(finding.severity)}</span><span class="status-pill">${escapeHTML(finding.status)}</span>${finding.status === "open" ? `<select data-finding-id="${escapeHTML(finding.id)}" aria-label="Update finding status"><option value="open" selected>Open</option><option value="accepted">Accepted</option><option value="fixed">Fixed</option><option value="false_positive">False positive</option></select>` : ""}</article>`).join("") : emptyState("No findings recorded", "Findings from authorized asset checks will appear here.");
     $$('[data-verify-asset]', $("#assets-list")).forEach((button) => button.addEventListener("click", async () => {
       try { await api(`/assets/${encodeURIComponent(button.dataset.verifyAsset)}/verify`, { method: "POST" }); loadAssets(); }
@@ -415,14 +423,27 @@ function renderCloudShell() {
 
 function renderModulePage(page) {
   const [title, description, connection] = pageInfo[page] || ["Workspace module", "Review threat intelligence and operational status for your organization.", "Data source"];
+  const moduleIcon = navGroups.flatMap((group) => group.items).find((item) => item[0] === page)?.[2] || "CircleHelp";
   viewRoot.innerHTML = `${pageHeading("THREAT INTELLIGENCE / WORKSPACE", title, description)}
-    <section class="module-hero surface-card"><div class="module-symbol">${escapeHTML(navGroups.flatMap((group) => group.items).find((item) => item[0] === page)?.[2] || "◈")}</div><div><p class="section-kicker">READY FOR YOUR WORKSPACE</p><h2>Connect a source to activate this view</h2><p>This workspace currently exposes organization assets, findings, indicators, alerts, team access, and integration health. ${escapeHTML(title)} data is not available from a connected source yet, so no sample intelligence is shown as live information.</p><button class="primary-button" data-go-integrations>Review connections <span>→</span></button></div></section>
-    <section class="module-info-grid"><article class="surface-card"><span class="module-info-icon">⌘</span><h3>${escapeHTML(connection)}</h3><p>Choose and configure a trusted source before this module reports operational data.</p></article><article class="surface-card"><span class="module-info-icon">◈</span><h3>Workspace scoped</h3><p>Connected information will remain isolated to this organization and its member roles.</p></article><article class="surface-card"><span class="module-info-icon">↗</span><h3>Ready for analyst workflows</h3><p>When a source is connected, findings can be reviewed alongside alerts and assets.</p></article></section>`;
+    <section class="module-hero surface-card"><div class="module-symbol">${iconMarkup(moduleIcon, "module-svg-icon", "accent")}</div><div><p class="section-kicker">READY FOR YOUR WORKSPACE</p><h2>Connect a source to activate this view</h2><p>This workspace currently exposes organization assets, findings, indicators, alerts, team access, and integration health. ${escapeHTML(title)} data is not available from a connected source yet, so no sample intelligence is shown as live information.</p><button class="primary-button" data-go-integrations>Review connections <span>→</span></button></div></section>
+    <section class="module-info-grid"><article class="surface-card"><span class="module-info-icon">${iconMarkup("PlugZap", "module-info-svg", "accent")}</span><h3>${escapeHTML(connection)}</h3><p>Choose and configure a trusted source before this module reports operational data.</p></article><article class="surface-card"><span class="module-info-icon">${iconMarkup("ShieldCheck", "module-info-svg", "accent")}</span><h3>Workspace scoped</h3><p>Connected information will remain isolated to this organization and its member roles.</p></article><article class="surface-card"><span class="module-info-icon">${iconMarkup("Activity", "module-info-svg", "accent")}</span><h3>Ready for analyst workflows</h3><p>When a source is connected, findings can be reviewed alongside alerts and assets.</p></article></section>`;
   $("[data-go-integrations]").addEventListener("click", () => navigate("integrations"));
 }
 
+function renderSettingsPage() {
+  const configured = window.oauthProviders || {};
+  const user = window.currentUser;
+  const providers = ["google", "github"];
+  viewRoot.innerHTML = `${pageHeading("ACCOUNT / SECURITY", "Account settings", "Manage identity providers for this workspace account.")}
+    <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">IDENTITY</p><h2>Sign-in methods</h2></div><span class="status-pill">${user?.oauthLinked ? "OAuth linked" : "Password account"}</span></div>
+      <p class="page-subtitle">${user?.email ? `Connected identity: ${escapeHTML(user.email)}` : "Link a verified Google or GitHub identity to use it for future sign-ins."}</p>
+      <div class="quick-actions">${providers.map((provider) => `<button class="secondary-button" type="button" data-provider="${provider}" ${configured[provider] ? "" : "disabled"}>Link ${provider === "google" ? "Google" : "GitHub"} account</button>`).join("")}</div>
+      <p class="form-message" id="identity-message" role="status" aria-live="polite">${providers.some((provider) => configured[provider]) ? "OAuth accounts are linked to this existing workspace member after verification." : "Google and GitHub OAuth client credentials are not configured yet."}</p>
+    </section>`;
+}
+
 async function renderIntegrationsPage() {
-  viewRoot.innerHTML = `${pageHeading("INTEGRATIONS / PLATFORM HEALTH", "Connections", "Review server-side integration configuration and connection health.", '<button class="secondary-button" id="refresh-integrations">↻ <span>Refresh status</span></button>')}
+  viewRoot.innerHTML = `${pageHeading("INTEGRATIONS / PLATFORM HEALTH", "Connections", "Review server-side integration configuration and connection health.", `<button class="secondary-button" id="refresh-integrations">${iconMarkup("RefreshCw", "button-svg-icon", "muted")} <span>Refresh status</span></button>`)}
     <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">CONFIGURED SERVICES</p><h2>Integration status</h2></div><span class="subtle-tag">Credentials never shown</span></div><div id="integrations-list" class="integration-list"></div><p id="integration-message" class="form-message" role="status"></p></section>`;
   $("#refresh-integrations").addEventListener("click", loadIntegrations);
   await loadIntegrations();
@@ -434,7 +455,8 @@ async function loadIntegrations() {
       const configured = ["configured", "valid"].includes(integration.state);
       const details = integration.id === "deepseek" ? `Model: ${escapeHTML(integration.model)} · Credential: ${integration.credentialPresent ? "present" : "not set"}` : integration.id === "hasura" ? `Endpoint: ${integration.endpointPresent ? "set" : "missing"} · Credentials: ${integration.adminSecretPresent && integration.jwtSecretPresent ? "present" : "incomplete"}` : integration.id === "openshift" ? `Endpoint: ${escapeHTML(integration.endpoint)} · Token: ${integration.credentialPresent ? "present" : "not set"}` : escapeHTML(integration.note || "Server-side configuration");
       const canTest = (["owner", "admin"].includes(window.currentRole) && ["deepseek", "hasura"].includes(integration.id)) || (["owner", "admin", "analyst"].includes(window.currentRole) && integration.id === "openshift");
-      return `<article class="integration-row"><span class="integration-icon">${integration.id === "deepseek" ? "D" : integration.id === "hasura" ? "H" : integration.id === "openshift" ? "O" : "⌘"}</span><div><strong>${escapeHTML(integration.name)}</strong><small>${details}</small></div><span class="asset-state ${configured ? "verified" : "pending"}"><i></i>${configured ? "Configured" : "Not configured"}</span>${canTest ? `<button data-test-integration="${escapeHTML(integration.id)}">Test connection</button>` : ""}</article>`;
+      const integrationIcon = ({ deepseek: "Cpu", hasura: "Database", openshift: "Server" })[integration.id] || "PlugZap";
+      return `<article class="integration-row"><span class="integration-icon">${iconMarkup(integrationIcon, "integration-svg-icon", "accent")}</span><div><strong>${escapeHTML(integration.name)}</strong><small>${details}</small></div><span class="asset-state ${configured ? "verified" : "pending"}"><i></i>${configured ? "Configured" : "Not configured"}</span>${canTest ? `<button data-test-integration="${escapeHTML(integration.id)}">Test connection</button>` : ""}</article>`;
     }).join("") || emptyState("No connections listed", "Integration status is not available.");
     $$('[data-test-integration]').forEach((button) => button.addEventListener("click", async () => {
       button.disabled = true;
@@ -448,7 +470,7 @@ async function loadIntegrations() {
 async function renderTeamPage() {
   viewRoot.innerHTML = `${pageHeading("ADMIN / ACCESS CONTROL", "Team & workspace", "Manage workspace membership and least-privilege access.")}
     <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">INVITE A COLLEAGUE</p><h2>Create a one-time invitation</h2></div></div><form id="invite-form" class="inline-form"><label>Workspace role<select name="role"><option value="viewer">Viewer</option><option value="analyst">Analyst</option><option value="admin">Admin</option></select></label><button class="primary-button">Create invitation <span>→</span></button></form><p id="invite-result" class="form-message" role="status"></p></section>
-    <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">MEMBERS</p><h2>Workspace access</h2></div><button class="secondary-button" id="refresh-team">↻ <span>Refresh</span></button></div><div id="member-list" class="integration-list"></div></section>`;
+    <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">MEMBERS</p><h2>Workspace access</h2></div><button class="secondary-button" id="refresh-team">${iconMarkup("RefreshCw", "button-svg-icon", "muted")} <span>Refresh</span></button></div><div id="member-list" class="integration-list"></div></section>`;
   $("#refresh-team").addEventListener("click", loadTeam);
   $("#invite-form").addEventListener("submit", async (event) => { event.preventDefault(); try { const result = await api("/workspace/invitations", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) }); $("#invite-result").textContent = `One-time token (expires ${formatDate(result.invitation.expiresAt)}): ${result.invitation.token}. Copy it now; it will not be shown again.`; } catch (error) { $("#invite-result").textContent = error.message; } });
   loadTeam();
@@ -464,17 +486,17 @@ async function loadTeam() {
 }
 
 async function renderAuditPage() {
-  viewRoot.innerHTML = `${pageHeading("ADMIN / ACTIVITY", "Audit log", "Review recent workspace activity and access-related actions.", '<button class="secondary-button" id="refresh-audit">↻ <span>Refresh</span></button>')}
+  viewRoot.innerHTML = `${pageHeading("ADMIN / ACTIVITY", "Audit log", "Review recent workspace activity and access-related actions.", `<button class="secondary-button" id="refresh-audit">${iconMarkup("RefreshCw", "button-svg-icon", "muted")} <span>Refresh</span></button>`)}
     <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">RECENT EVENTS</p><h2>Workspace activity</h2></div></div><div id="audit-list" class="audit-list"></div></section>`;
   $("#refresh-audit").addEventListener("click", loadAudit);
   loadAudit();
 }
 async function loadAudit() {
-  try { const { events } = await api("/audit"); $("#audit-list").innerHTML = events.length ? events.map((event) => `<article class="audit-row"><span class="audit-icon">≡</span><div><strong>${escapeHTML(event.action)}</strong><small>${escapeHTML(event.detail || "Workspace event")}</small></div><time>${formatDate(event.at)} · ${new Date(event.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></article>`).join("") : emptyState("No activity yet", "Workspace actions will be recorded here."); }
+  try { const { events } = await api("/audit"); $("#audit-list").innerHTML = events.length ? events.map((event) => `<article class="audit-row"><span class="audit-icon">${iconMarkup("ClipboardList", "audit-svg-icon", "accent")}</span><div><strong>${escapeHTML(event.action)}</strong><small>${escapeHTML(event.detail || "Workspace event")}</small></div><time>${formatDate(event.at)} · ${new Date(event.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></article>`).join("") : emptyState("No activity yet", "Workspace actions will be recorded here."); }
   catch (error) { $("#audit-list").innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`; }
 }
 
-function emptyState(title, body) { return `<div class="empty-state"><span class="empty-mark">⌁</span><strong>${title}</strong><p>${body}</p></div>`; }
+function emptyState(title, body) { return `<div class="empty-state"><span class="empty-mark">${iconMarkup("CircleHelp", "empty-svg-icon", "muted")}</span><strong>${title}</strong><p>${body}</p></div>`; }
 function formatTime(value) { if (!value) return "—"; return new Date(value).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
 function formatDate(value) { if (!value) return "—"; return new Date(value).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" }); }
 
@@ -487,10 +509,77 @@ async function exportSnapshot() {
   } catch (error) { viewRoot.insertAdjacentHTML("afterbegin", `<div class="inline-error">${escapeHTML(error.message)}</div>`); }
 }
 
-function showAuth() { dashboard.classList.add("hidden"); auth.classList.remove("hidden"); $("#auth-message").textContent = ""; }
+function showAuth() {
+  dashboard.classList.add("hidden"); auth.classList.remove("hidden");
+  $("#auth-tabs").classList.remove("hidden");
+  $("#social-login").classList.remove("hidden");
+  $("#auth-divider").classList.remove("hidden");
+  $("#login-form").classList.remove("hidden");
+  $("#bootstrap-form").classList.add("hidden");
+  $("#oauth-invitation-form").classList.add("hidden");
+  $("#oauth-bootstrap-form").classList.add("hidden");
+  $$('[data-tab]').forEach((tab) => { const selected = tab.dataset.tab === "login"; tab.classList.toggle("active", selected); tab.setAttribute("aria-selected", String(selected)); });
+  authMessage.textContent = "";
+}
+function showOAuthGate(needsBootstrap) {
+  dashboard.classList.add("hidden"); auth.classList.remove("hidden");
+  $("#auth-tabs").classList.add("hidden"); $("#social-login").classList.add("hidden"); $("#auth-divider").classList.add("hidden");
+  $("#login-form").classList.add("hidden"); $("#bootstrap-form").classList.add("hidden");
+  $("#oauth-invitation-form").classList.toggle("hidden", needsBootstrap);
+  $("#oauth-bootstrap-form").classList.toggle("hidden", !needsBootstrap);
+  authMessage.textContent = needsBootstrap ? "First verified OAuth account can initialize the owner workspace." : "This verified account needs a one-time invitation from a workspace administrator.";
+}
+async function loadOAuthProviderStatus() {
+  try {
+    const { providers } = await api("/auth-status");
+    window.oauthProviders = providers;
+    const buttons = $$('[data-provider]');
+    buttons.forEach((button) => { button.disabled = !providers[button.dataset.provider.toLowerCase()]; });
+    const ready = ["google", "github"].filter((provider) => providers[provider]).map((provider) => provider === "google" ? "Google" : "GitHub");
+    $("#provider-note").textContent = ready.length ? `${ready.join(" and ")} sign-in is configured. New members still need a workspace invitation.` : "Google and GitHub OAuth credentials must be configured by an administrator.";
+  } catch {
+    $("#provider-note").textContent = "OAuth provider status is unavailable.";
+  }
+}
+async function startSocialLogin(provider) {
+  const normalizedProvider = provider.toLowerCase();
+  if (!window.oauthProviders?.[normalizedProvider]) {
+    authMessage.textContent = `${provider} sign-in is not configured for this workspace.`;
+    return;
+  }
+  try {
+    const response = await fetch("/api/auth/sign-in/social", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider: normalizedProvider, callbackURL: `${window.location.origin}/?oauth=complete` }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || typeof result.url !== "string") throw new Error("Could not start secure provider sign-in.");
+    window.location.assign(result.url);
+  } catch (error) {
+    const message = $("#identity-message") || authMessage;
+    message.textContent = error.message;
+  }
+}
+async function completeOAuth() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("oauth");
+  history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  try {
+    const result = await api("/oauth/complete", { method: "POST", body: "{}" });
+    if (result.authenticated) { await showDashboard(); return; }
+    showOAuthGate(Boolean(result.needsBootstrap));
+  } catch (error) {
+    showAuth(); authMessage.textContent = error.message;
+  }
+}
+async function finishOAuthOnboarding(path, form) {
+  try {
+    await api(path, { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+    const url = new URL(window.location.href); url.searchParams.delete("oauth"); history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    await showDashboard();
+  } catch (error) { authMessage.textContent = error.message; }
+}
 async function showDashboard() {
   try {
     const { user } = await api("/me");
+    window.currentUser = user;
     window.currentRole = user.role;
     auth.classList.add("hidden"); dashboard.classList.remove("hidden");
     $("#profile-name").textContent = user.username;
@@ -511,20 +600,28 @@ $$('[data-tab]').forEach((button) => button.addEventListener("click", () => {
   $(".auth-divider").classList.toggle("hidden", bootstrap);
   authMessage.textContent = "";
 }));
-$$("[data-provider]").forEach((button) => button.addEventListener("click", () => {
-  authMessage.textContent = `${button.dataset.provider} sign-in has not been configured for this workspace yet.`;
-}));
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-provider]");
+  if (button && !button.disabled) startSocialLogin(button.dataset.provider);
+});
 $("#login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  try { await api("/auth/login", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) }); await showDashboard(); }
+  try { await api("/session/login", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) }); await showDashboard(); }
   catch (error) { authMessage.textContent = error.message; }
 });
 $("#bootstrap-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  try { await api("/auth/bootstrap", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) }); await showDashboard(); }
+  try { await api("/session/bootstrap", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) }); await showDashboard(); }
   catch (error) { authMessage.textContent = error.message; }
 });
-$("#logout").addEventListener("click", async () => { try { await api("/auth/logout", { method: "POST" }); } finally { showAuth(); } });
+$("#oauth-invitation-form").addEventListener("submit", (event) => { event.preventDefault(); finishOAuthOnboarding("/oauth/accept-invitation", event.currentTarget); });
+$("#oauth-bootstrap-form").addEventListener("submit", (event) => { event.preventDefault(); finishOAuthOnboarding("/oauth/bootstrap", event.currentTarget); });
+$("#logout").addEventListener("click", async () => {
+  try {
+    await fetch("/api/auth/sign-out", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: "{}" });
+    await api("/session/logout", { method: "POST" });
+  } finally { window.currentUser = null; showAuth(); }
+});
 $("#refresh").addEventListener("click", () => navigate("dashboard"));
 $("#global-search").addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.nativeEvent?.isComposing && event.keyCode !== 229) {
@@ -544,4 +641,6 @@ document.addEventListener("keydown", (event) => {
   }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); $("#global-search").focus(); }
 });
-api("/me").then(showDashboard).catch(showAuth);
+loadOAuthProviderStatus();
+if (new URLSearchParams(window.location.search).get("oauth") === "complete") completeOAuth();
+else api("/me").then(showDashboard).catch(showAuth);
