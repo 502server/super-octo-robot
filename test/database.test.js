@@ -19,7 +19,7 @@ test("parses a MariaDB URL and enforces TLS verification", () => {
 
 test("requires an explicit database name and valid MySQL protocol", () => {
   assert.throws(() => mariaDbOptionsFromUrl("mariadb://user:pass@db.example.com:4018"), /database name/);
-  assert.throws(() => mariaDbOptionsFromUrl("postgres://user:pass@db.example.com/app"), /mysql:\/\//);
+  assert.throws(() => mariaDbOptionsFromUrl("unsupported://user:pass@db.example.com/app"), /mysql:\/\//);
 });
 
 test("adds an optional provider CA without disabling certificate checks", () => {

@@ -18,9 +18,7 @@
     "format": "prettier --write package.json tsconfig.json vercel.json index.js eslint.config.js vite.config.ts .github/workflows/ci.yml web/app.js web/index.html web/style.css web/src/**/*.tsx",
     "format:check": "prettier --check package.json tsconfig.json vercel.json index.js eslint.config.js vite.config.ts .github/workflows/ci.yml web/app.js web/index.html web/style.css web/src/**/*.tsx",
     "db:migrate:mariadb": "node scripts/migrate-mariadb.js",
-    "db:auth:migrate": "pnpm dlx auth@latest migrate --config backend/auth.js --yes",
-    "db:preflight": "node scripts/preflight-json-import.js",
-    "db:import": "node scripts/import-json-to-mariadb.js"
+    "db:auth:migrate": "pnpm dlx auth@latest migrate --config backend/auth.js --yes"
   },
   "prettier": {
     "printWidth": 110,
@@ -30,13 +28,11 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "better-auth": "^1.7.26",
-    "drizzle-orm": "^0.45.4",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "lucide-static": "^1.75.0",
     "mysql2": "^3.24.6",
-    "pg": "^8.13.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"

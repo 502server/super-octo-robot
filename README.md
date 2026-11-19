@@ -26,11 +26,8 @@ Open http://localhost:3000. Set unique long values for BOOTSTRAP_TOKEN and SESSI
 ## MariaDB runtime
 
 - Configure `MARIADB_URL` with a `mysql://` or `mariadb://` URL that includes the database name. The driver always verifies TLS certificates; use `MARIADB_SSL_CA` only if the provider's CA is not in the system trust store. Never commit these values or expose them to browser code.
-- `LEGACY_POSTGRES_URL` is a temporary PostgreSQL source-only setting for the guarded import; the application runtime never reads it.
-- The Express app stores all feature state in one MariaDB JSON row and performs each update inside a transaction with `SELECT ... FOR UPDATE`, so concurrent Vercel instances do not overwrite each other's updates. Better Auth uses the same MariaDB pool for its separate auth tables.
-- Initialize with `pnpm db:migrate:mariadb` and `pnpm db:auth:migrate`. The guarded importer can read from `LEGACY_POSTGRES_URL` and writes only to MariaDB.
-- Dry-run before importing: `pnpm db:import -- --from-database`. Apply only after reviewing counts and securing a restorable backup: `pnpm db:import -- --from-database --apply --backup-confirmed`. The importer validates tenant references, preserves IDs and password/session hashes, never exports raw session tokens, and refuses to overwrite non-empty MariaDB state.
-- Keep the legacy source database and rollback snapshot available until Vercel Preview and Production persistence, login, OAuth, and feature flows are verified; do not point Production at an empty target.
+- Initialize a fresh MariaDB target with `pnpm db:migrate:mariadb` and `pnpm db:auth:migrate` before first use.
+- The Express app stores feature state in MariaDB using InnoDB transactions and row locks. Better Auth uses the same MariaDB pool for its authentication tables.
 
 ## API
 
@@ -65,6 +62,4 @@ Configure these server-only variables in the Vercel project for Preview and Prod
 - `MARIADB_SSL_CA`: optional provider CA PEM, only if required to validate the server certificate.
 - `SESSION_SECRET`, `BETTER_AUTH_SECRET`, and `BOOTSTRAP_TOKEN`: unique, strong secrets.
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET` when those OAuth providers are enabled.
-- `LEGACY_POSTGRES_URL`: temporary source-only PostgreSQL URL for the guarded import; remove it after migration verification.
-
-The production cutover is not complete until source data has been imported, counts and tenant references have been verified, and auth plus feature writes pass in Preview and Production. Keep the existing production service, legacy source database, and rollback snapshot available until then.
+Before enabling Production, initialize the MariaDB schema and verify authentication and feature reads/writes in Preview.
