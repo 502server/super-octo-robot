@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AuthScreen } from "./components/auth-screen";
 import { DashboardShell } from "./components/dashboard-shell";
+import { LegalDialog } from "./components/legal-dialog";
 
 export function App() {
   const [startupError, setStartupError] = useState("");
@@ -22,6 +23,7 @@ export function App() {
     <>
       <AuthScreen />
       <DashboardShell />
+      <LegalDialog />
       <p className="sr-only" role="status" aria-live="polite">
         {startupError}
       </p>

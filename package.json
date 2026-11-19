@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "packageManager": "pnpm@10.34.3",
   "scripts": {
@@ -26,6 +26,7 @@
     "trailingComma": "all"
   },
   "dependencies": {
+    "ai": "^7.0.177",
     "bcryptjs": "^2.4.3",
     "better-auth": "^1.7.26",
     "express": "^4.21.2",

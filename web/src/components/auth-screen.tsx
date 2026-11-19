@@ -160,6 +160,13 @@ export function AuthScreen() {
             </svg>
             Session protected · Workspace isolated
           </span>
+          <button
+            type="button"
+            className="legal-trigger"
+            onClick={() => window.dispatchEvent(new Event("fivezero2:legal:open"))}
+          >
+            Terms &amp; Privacy
+          </button>
         </div>
       </div>
     </section>

@@ -1,3 +1,4 @@
+import { AiAssistant } from "./ai-assistant";
 import { BrandMark } from "./brand-mark";
 
 export function DashboardShell() {
@@ -105,6 +106,7 @@ export function DashboardShell() {
         </header>
         <div id="view-root" className="view-root" tabIndex={-1} />
       </main>
+      <AiAssistant />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import {Router} from "express";
 import {roleGuard} from "./access.js";
+import {DEEPSEEK_MODEL_ID} from "./ai-config.js";
 
 export function createIntegrationRouter(auth){
  const router=Router();
@@ -8,7 +9,7 @@ export function createIntegrationRouter(auth){
  router.get("/status",auth,(_req,res)=>{
   const present=k=>Boolean(process.env[k]?.trim());
   res.json({integrations:[
-   {id:"deepseek",name:"DeepSeek API",state:present("DEEPSEEK_API_KEY")?"configured":"missing",credentialPresent:present("DEEPSEEK_API_KEY"),model:process.env.DEEPSEEK_MODEL||"deepseek-chat",baseUrl:base()},
+   {id:"deepseek",name:"DeepSeek AI Assistant",state:"configured",model:DEEPSEEK_MODEL_ID,route:"Vercel AI Gateway",note:"Vercel AI Gateway manages model access; no DeepSeek API key is stored by this application."},
    {id:"hasura",name:"Hasura GraphQL",state:present("HASURA_GRAPHQL_ENDPOINT")&&present("HASURA_ADMIN_SECRET")?"configured":present("HASURA_GRAPHQL_ENDPOINT")?"partial":"missing",endpointPresent:present("HASURA_GRAPHQL_ENDPOINT"),adminSecretPresent:present("HASURA_ADMIN_SECRET"),jwtSecretPresent:present("HASURA_JWT_SECRET"),endpoint:process.env.HASURA_GRAPHQL_ENDPOINT||""},
    {id:"openshift",name:"OpenShift API",state:present("OPENSHIFT_USER_TOKEN")?"configured":"missing",credentialPresent:present("OPENSHIFT_USER_TOKEN"),endpoint:"https://api.rm2.thpm.p1.openshiftapps.com:6443"},
    {id:"session",name:"Session signing secret",state:present("SESSION_SECRET")?"configured":"missing"},

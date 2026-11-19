@@ -19,8 +19,10 @@ import {
   assetVerificationChallenge,
 } from "./store.js";
 import { hashToken, safeEqual, normalizeOrigin, isPrivateAddress } from "./security.js";
+import { createAssistantRouter } from "./assistant.js";
 import { createIntegrationRouter } from "./integrations.js";
 import { createIntelligenceRouter } from "./intelligence.js";
+import { createSystemRouter } from "./system.js";
 import { roleGuard, canAssignRole, sameWorkspace } from "./access.js";
 const app = express(),
   port = Number(process.env.PORT || 3000),
@@ -229,8 +231,10 @@ app.get(["/icons/:name.svg", "/api/icons/:name.svg"], (req, res) => {
 });
 app.get("/api/health", (_, res) => res.json({ ok: true, service: "fivezero2.group", time: now() }));
 app.get("/api/auth-status", (_, res) => res.json({ providers: oauthProviderStatus }));
+app.use("/api/assistant", createAssistantRouter(auth));
 app.use("/api/integrations", createIntegrationRouter(auth));
 app.use("/api/intel", createIntelligenceRouter(auth));
+app.use("/api/system", createSystemRouter(auth));
 app.post("/api/oauth/complete", async (req, res) => {
   const identity = await oauthIdentityFromRequest(req);
   if (!identity) return res.status(401).json({ error: "OAuth session was not found. Sign in again." });

@@ -66,6 +66,7 @@ const navGroups = [
       ["cases", "Cases & incidents", "BriefcaseBusiness"],
       ["reports", "Reports", "FileChartColumn"],
       ["tasks", "Task queue", "ListTodo"],
+      ["cloudshell", "CloudShell", "Terminal"],
     ],
   },
   {
@@ -80,6 +81,7 @@ const navGroups = [
     items: [
       ["team", "Team & workspace", "UsersRound"],
       ["audit", "Audit log", "ClipboardList"],
+      ["system", "System & legal", "ShieldCheck"],
       ["settings", "Settings", "Settings"],
     ],
   },
@@ -167,6 +169,7 @@ const pageInfo = {
     "Export connections",
   ],
   settings: ["Settings", "Manage workspace preferences and organization policy.", "Workspace settings"],
+  system: ["System & legal", "Review live application diagnostics and workspace governance documents.", "System and legal information"],
 };
 
 function escapeHTML(value) {
@@ -229,8 +232,11 @@ function renderNavigation(active = "dashboard") {
   );
 }
 
+$("#sidebar-search").addEventListener("input", () => renderNavigation(currentPage));
+
 function navigate(page) {
   currentPage = page;
+  window.dispatchEvent(new CustomEvent("fivezero2:page-change", { detail: page }));
   const title =
     pageInfo[page]?.[0] ||
     {
@@ -258,7 +264,8 @@ function navigate(page) {
   else if (page === "team") renderTeamPage();
   else if (page === "audit") renderAuditPage();
   else if (page === "settings") renderSettingsPage();
-  else if (page === "cloud") renderCloudShell();
+  else if (page === "cloudshell") renderCloudShell();
+  else if (page === "system") renderSystemPage();
   else if (page === "exports") renderExportsPage();
   else renderModulePage(page);
   viewRoot.focus({ preventScroll: true });
@@ -777,28 +784,22 @@ async function loadWatchlists() {
 }
 
 function renderCloudShell() {
-  viewRoot.innerHTML = `${pageHeading("CLOUD / SAFE CONSOLE", "CloudShell", "A Linux-style command console for safe workspace orientation.")}
-    <section class="surface-card cloudshell-card" aria-label="CloudShell safe command console">
-      <header class="cloudshell-toolbar"><div class="cloudshell-identity"><span class="cloudshell-led" aria-hidden="true"></span><div><strong>fivezero2-cloudshell</strong><small>Linux command preview · isolated demo</small></div></div><span class="subtle-tag">Safe demo mode</span></header>
-      <p class="cloudshell-notice" role="note"><span aria-hidden="true">!</span><span><strong>Demo console:</strong> commands use a small read-only browser allowlist. This terminal never runs commands on the server or OpenShift cluster; Connections provides a separate read-only identity check.</span></p>
-      <div class="terminal-window"><div class="terminal-titlebar" aria-hidden="true"><i></i><i></i><i></i><span>cloudshell — safe demo</span></div><div id="cloud-terminal-output" class="terminal-output" role="log" aria-live="polite" aria-relevant="additions text"><p class="terminal-line terminal-system">Welcome to fivezero2 CloudShell demo. Type help to see supported commands.</p></div>
-        <form id="cloud-terminal-form" class="terminal-form"><label class="sr-only" for="cloud-terminal-input">Enter a supported demo command</label><span class="terminal-prompt" aria-hidden="true">analyst@cloudshell:~$</span><input id="cloud-terminal-input" name="command" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="try help" aria-describedby="cloudshell-footnote" /><button class="terminal-run" type="submit">Run</button></form>
+  viewRoot.innerHTML = `${pageHeading("CLOUD / READ-ONLY OPERATIONS", "CloudShell", "Inspect live application and kernel metadata through an authenticated diagnostic console.")}
+    <section class="surface-card cloudshell-card" aria-label="CloudShell diagnostic console">
+      <header class="cloudshell-toolbar"><div class="cloudshell-identity"><span class="cloudshell-led" aria-hidden="true"></span><div><strong>fivezero2-cloudshell</strong><small>Authenticated runtime diagnostics</small></div></div><span class="subtle-tag">Read-only</span></header>
+      <p class="cloudshell-notice" role="note"><span aria-hidden="true">!</span><span><strong>Restricted console:</strong> commands return live server version, kernel, uptime, and session details. No arbitrary shell, filesystem, network, or cluster commands are executed.</span></p>
+      <div id="cloud-system-info" class="system-info-grid" aria-live="polite"><div class="loading-state">Loading runtime details…</div></div>
+      <div class="terminal-window"><div class="terminal-titlebar" aria-hidden="true"><i></i><i></i><i></i><span>cloudshell · diagnostics</span></div><div id="cloud-terminal-output" class="terminal-output" role="log" aria-live="polite" aria-relevant="additions text"><p class="terminal-line terminal-system">Authenticated diagnostic session ready. Type help to see available commands.</p></div>
+        <form id="cloud-terminal-form" class="terminal-form"><label class="sr-only" for="cloud-terminal-input">Enter a supported read-only diagnostic command</label><span class="terminal-prompt" aria-hidden="true">analyst@fivezero2:~$</span><input id="cloud-terminal-input" name="command" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="try status" aria-describedby="cloudshell-footnote" /><button class="terminal-run" type="submit">Run</button></form>
       </div>
-      <div class="terminal-shortcuts" aria-label="Example commands"><span>Try:</span><button type="button" data-terminal-command="help">help</button><button type="button" data-terminal-command="pwd">pwd</button><button type="button" data-terminal-command="ls">ls</button><button type="button" data-terminal-command="uname -s">uname -s</button></div>
-      <p id="cloudshell-footnote" class="cloudshell-footnote"><strong>Powered by Red Hat &amp; Linux.</strong> Environment details are illustrative; this demo does not access live shell resources.</p>
+      <div class="terminal-shortcuts" aria-label="Available diagnostic commands"><span>Commands:</span><button type="button" data-terminal-command="help">help</button><button type="button" data-terminal-command="status">status</button><button type="button" data-terminal-command="version">version</button><button type="button" data-terminal-command="kernel">kernel</button><button type="button" data-terminal-command="uptime">uptime</button><button type="button" data-terminal-command="whoami">whoami</button><button type="button" data-terminal-command="date">date</button></div>
+      <p id="cloudshell-footnote" class="cloudshell-footnote"><strong>Live data, read-only access.</strong> The console exposes only allowlisted diagnostics and never runs user-provided shell input.</p>
     </section>`;
 
   const output = $("#cloud-terminal-output");
   const form = $("#cloud-terminal-form");
   const input = $("#cloud-terminal-input");
-  const commandResults = {
-    help: "Supported commands: clear, date, help, ls, pwd, uname -s, whoami",
-    date: () => new Date().toString(),
-    ls: "README.txt  indicators/  reports/",
-    pwd: "/home/analyst",
-    "uname -s": "Linux (illustrative demo environment)",
-    whoami: "analyst (demo session)",
-  };
+  const commandNames = ["status", "version", "kernel", "uptime", "whoami", "date"];
 
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && (event.isComposing || event.keyCode === 229)) event.preventDefault();
@@ -812,35 +813,101 @@ function renderCloudShell() {
     output.scrollTop = output.scrollHeight;
   }
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const command = input.value.trim();
+  async function runTerminalCommand(command) {
     if (!command) return;
-    writeTerminalLine("terminal-command", `analyst@cloudshell:~$ ${command}`);
-    input.value = "";
-
+    writeTerminalLine("terminal-command", `analyst@fivezero2:~$ ${command}`);
     if (command === "clear") {
       output.replaceChildren();
       return;
     }
+    if (command === "help") {
+      writeTerminalLine("terminal-result", `Supported commands: clear, help, ${commandNames.join(", ")}`);
+      return;
+    }
+    if (!commandNames.includes(command)) {
+      writeTerminalLine("terminal-warning", "Command unavailable. Type help to see supported diagnostics.");
+      return;
+    }
 
-    const supported = Object.hasOwn(commandResults, command);
-    const result = supported ? commandResults[command] : null;
-    writeTerminalLine(
-      supported ? "terminal-result" : "terminal-warning",
-      typeof result === "function"
-        ? result()
-        : result || `Command unavailable in safe demo mode: ${command}. Type help for supported commands.`,
-    );
+    writeTerminalLine("terminal-system", `Requesting ${command}…`);
+    try {
+      const { output: result } = await api("/system/shell", {
+        method: "POST",
+        body: JSON.stringify({ command }),
+      });
+      const pending = output.lastElementChild;
+      if (pending?.classList.contains("terminal-system")) pending.remove();
+      String(result).split("\n").forEach((line) => writeTerminalLine("terminal-result", line));
+    } catch (error) {
+      const pending = output.lastElementChild;
+      if (pending?.classList.contains("terminal-system")) pending.remove();
+      writeTerminalLine("terminal-warning", error.message || "Diagnostic request failed.");
+    }
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const command = input.value.trim();
+    input.value = "";
+    void runTerminalCommand(command);
   });
 
   $$("[data-terminal-command]").forEach((button) =>
     button.addEventListener("click", () => {
-      input.value = button.dataset.terminalCommand;
-      form.requestSubmit();
+      void runTerminalCommand(button.dataset.terminalCommand);
       input.focus();
     }),
   );
+
+  loadSystemMetadata($("#cloud-system-info"));
+}
+
+function systemMetadataMarkup(system) {
+  const uptime = Math.max(0, Number(system.uptimeSeconds) || 0);
+  const days = Math.floor(uptime / 86400);
+  const hours = Math.floor((uptime % 86400) / 3600);
+  const minutes = Math.floor((uptime % 3600) / 60);
+  const seconds = uptime % 60;
+  const uptimeLabel = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  const details = [
+    ["Application release", system.appVersion, system.service],
+    ["Node.js runtime", system.nodeVersion, "Server runtime"],
+    ["Kernel version", `${system.kernelName} ${system.kernelVersion}`, "Operating system kernel"],
+    ["Platform", `${system.platform} · ${system.architecture}`, "Runtime architecture"],
+    ["Process uptime", uptimeLabel, "Current application process"],
+  ];
+  return details
+    .map(
+      ([label, value, note]) =>
+        `<article class="system-info-card"><span>${escapeHTML(label)}</span><strong>${escapeHTML(value)}</strong><small>${escapeHTML(note)}</small></article>`,
+    )
+    .join("");
+}
+
+async function loadSystemMetadata(root) {
+  if (!root) return;
+  root.innerHTML = '<div class="loading-state">Loading live system information…</div>';
+  try {
+    const { system } = await api("/system/metadata");
+    root.innerHTML = systemMetadataMarkup(system);
+  } catch (error) {
+    root.innerHTML = `<div class="inline-error" role="alert">${escapeHTML(error.message)}</div>`;
+  }
+}
+
+function renderSystemPage() {
+  viewRoot.innerHTML = `${pageHeading("ADMIN / GOVERNANCE", "System & legal", "Inspect the running release, operating-system kernel, and workspace policies.", '<button class="secondary-button" id="system-open-legal">Review terms &amp; privacy</button>')}
+    <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">LIVE RUNTIME</p><h2>System information</h2></div><button class="secondary-button" id="refresh-system">Refresh</button></div><div id="system-info" class="system-info-grid" aria-live="polite"></div></section>
+    <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">GOVERNANCE</p><h2>Terms, privacy &amp; acceptable use</h2></div><span class="subtle-tag">Draft for legal review</span></div><p class="page-subtitle">Review workspace access rules, authorized-use requirements, AI data sharing, and privacy details. This draft is not legal advice or a binding agreement until reviewed by qualified counsel.</p><div class="quick-actions"><button class="primary-button" id="open-legal-docs">Open terms &amp; privacy</button><button class="secondary-button" id="open-cloudshell">Open CloudShell diagnostics</button><button class="secondary-button" id="open-system-assistant">Ask DeepSeek</button></div></section>`;
+  const openLegal = () => window.dispatchEvent(new Event("fivezero2:legal:open"));
+  $("#system-open-legal").addEventListener("click", openLegal);
+  $("#open-legal-docs").addEventListener("click", openLegal);
+  $("#open-cloudshell").addEventListener("click", () => navigate("cloudshell"));
+  $("#open-system-assistant").addEventListener("click", () =>
+    window.dispatchEvent(new Event("fivezero2:assistant:open")),
+  );
+  $("#refresh-system").addEventListener("click", () => loadSystemMetadata($("#system-info")));
+  loadSystemMetadata($("#system-info"));
 }
 
 async function renderThreatOverview() {
@@ -1143,21 +1210,23 @@ async function loadIntegrations() {
           const configured = ["configured", "valid"].includes(integration.state);
           const details =
             integration.id === "deepseek"
-              ? `Model: ${escapeHTML(integration.model)} · Credential: ${integration.credentialPresent ? "present" : "not set"}`
+              ? `Model: ${escapeHTML(integration.model)} · Route: ${escapeHTML(integration.route || "Vercel AI Gateway")}`
               : integration.id === "hasura"
                 ? `Endpoint: ${integration.endpointPresent ? "set" : "missing"} · Credentials: ${integration.adminSecretPresent && integration.jwtSecretPresent ? "present" : "incomplete"}`
                 : integration.id === "openshift"
                   ? `Endpoint: ${escapeHTML(integration.endpoint)} · Token: ${integration.credentialPresent ? "present" : "not set"}`
                   : escapeHTML(integration.note || "Server-side configuration");
           const canTest =
-            (["owner", "admin"].includes(window.currentRole) &&
-              ["deepseek", "hasura"].includes(integration.id)) ||
+            (["owner", "admin"].includes(window.currentRole) && integration.id === "hasura") ||
             (["owner", "admin", "analyst"].includes(window.currentRole) && integration.id === "openshift");
           const integrationIcon =
             { deepseek: "Cpu", hasura: "Database", openshift: "Server" }[integration.id] || "PlugZap";
-          return `<article class="integration-row"><span class="integration-icon">${iconMarkup(integrationIcon, "integration-svg-icon", "accent")}</span><div><strong>${escapeHTML(integration.name)}</strong><small>${details}</small></div><span class="asset-state ${configured ? "verified" : "pending"}"><i></i>${configured ? "Configured" : "Not configured"}</span>${canTest ? `<button data-test-integration="${escapeHTML(integration.id)}">Test connection</button>` : ""}</article>`;
+          return `<article class="integration-row"><span class="integration-icon">${iconMarkup(integrationIcon, "integration-svg-icon", "accent")}</span><div><strong>${escapeHTML(integration.name)}</strong><small>${details}</small></div><span class="asset-state ${configured ? "verified" : "pending"}"><i></i>${configured ? "Configured" : "Not configured"}</span>${integration.id === "deepseek" ? '<button type="button" data-open-assistant>Open assistant</button>' : canTest ? `<button data-test-integration="${escapeHTML(integration.id)}">Test connection</button>` : ""}</article>`;
         })
         .join("") || emptyState("No connections listed", "Integration status is not available.");
+    $$("[data-open-assistant]").forEach((button) =>
+      button.addEventListener("click", () => window.dispatchEvent(new Event("fivezero2:assistant:open"))),
+    );
     $$("[data-test-integration]").forEach((button) =>
       button.addEventListener("click", async () => {
         button.disabled = true;
