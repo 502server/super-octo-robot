@@ -3288,9 +3288,8 @@ body {
   background: transparent !important;
   object-fit: contain;
   filter: grayscale(1);
-}
-#dashboard .nav-link.active .nav-icon {
-  filter: none;
+  opacity: 0.82;
+  transition: opacity 0.15s ease;
 }
 #dashboard .nav-link:hover .nav-icon {
   opacity: 1;
