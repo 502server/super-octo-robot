@@ -207,14 +207,20 @@ function setMobileNavigation(open, { restoreFocus = false } = {}) {
 }
 
 function renderNavigation(active = "dashboard") {
-  $("#sidebar-nav").innerHTML = navGroups
-    .map(
-      (group) => `
+  const query = $("#sidebar-search").value.trim().toLocaleLowerCase();
+  const groups = navGroups
+    .map((group) => ({ ...group, items: group.items.filter(([, label]) => label.toLocaleLowerCase().includes(query)) }))
+    .filter((group) => group.items.length);
+  $("#sidebar-nav").innerHTML = groups.length
+    ? groups
+        .map(
+          (group) => `
     <div class="nav-group"><p class="nav-label">${group.label}</p>
       ${group.items.map(([id, label, icon]) => `<button type="button" class="nav-link ${id === active ? "active" : ""}" data-page="${id}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}" ${id === active ? 'aria-current="page"' : ""}>${iconMarkup(icon, "nav-icon", id === active ? "white" : "muted")}<span>${escapeHTML(label)}</span>${id === "alerts" ? '<span class="nav-count" id="nav-alert-count">0</span>' : ""}</button>`).join("")}
     </div>`,
-    )
-    .join("");
+        )
+        .join("")
+    : '<p class="nav-empty">No menu items found.</p>';
   $$("[data-page]", $("#sidebar-nav")).forEach((button) =>
     button.addEventListener("click", () => {
       navigate(button.dataset.page);
@@ -1496,6 +1502,7 @@ $("#logout").addEventListener("click", async () => {
   }
 });
 $("#refresh").addEventListener("click", () => navigate(currentPage));
+$("#sidebar-search").addEventListener("input", () => renderNavigation(currentPage));
 $("#global-search").addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.isComposing && event.keyCode !== 229) {
     const query = event.currentTarget.value.trim();
@@ -1514,9 +1521,13 @@ document.addEventListener("keydown", (event) => {
     setMobileNavigation(false, { restoreFocus: true });
     return;
   }
+  if (event.key === "Escape" && document.activeElement === $("#sidebar-search")) {
+    $("#sidebar-search").value = "";
+    renderNavigation(currentPage);
+  }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
-    $("#global-search").focus();
+    $("#sidebar-search").focus();
   }
 });
 loadOAuthProviderStatus();

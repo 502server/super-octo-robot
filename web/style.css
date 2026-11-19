@@ -650,6 +650,44 @@ a:focus-visible {
   color: #687b93;
   font-size: 13px;
 }
+.sidebar-search {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 2px 8px;
+  padding: 0 9px;
+  border: 1px solid #243249;
+  border-radius: 6px;
+  background: #0c1421;
+}
+.sidebar-search img {
+  width: 14px;
+  height: 14px;
+}
+.sidebar-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 10px;
+}
+.sidebar-search input::placeholder {
+  color: var(--dim);
+}
+.sidebar-search kbd {
+  flex: none;
+  color: var(--dim);
+  font-size: 9px;
+}
+.nav-empty {
+  padding: 10px;
+  color: var(--dim);
+  font-size: 10px;
+}
 .sidebar-nav {
   flex: 1;
   min-height: 0;
