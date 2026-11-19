@@ -65,7 +65,12 @@ export function DashboardShell() {
           </div>
           <div className="topbar-actions">
             <label className="global-search">
-              <img className="header-svg-icon" src="/icons/Search.svg?tone=muted&v=2" alt="" aria-hidden="true" />
+              <img
+                className="header-svg-icon"
+                src="/icons/Search.svg?tone=muted&v=2"
+                alt=""
+                aria-hidden="true"
+              />
               <input
                 id="global-search"
                 type="search"
