@@ -2,9 +2,9 @@ import fs from "node:fs/promises";
 import crypto from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { closeMariaDbPool, getMariaDbPool } from "../api/database.js";
-import { isEmptyAppState, ensureMariaDbStateTable } from "../api/mariadb-schema.js";
-import { normalizeState } from "../api/store.js";
+import { closeMariaDbPool, getMariaDbPool } from "../backend/database.js";
+import { isEmptyAppState, ensureMariaDbStateTable } from "../backend/mariadb-schema.js";
+import { normalizeState } from "../backend/store.js";
 import { inspectState } from "./preflight-json-import.js";
 
 const sourceHash = (value) => crypto.createHash("sha256").update(value).digest("hex");

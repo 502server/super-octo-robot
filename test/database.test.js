@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mariaDbOptionsFromUrl } from "../api/database.js";
+import { mariaDbOptionsFromUrl } from "../backend/database.js";
 
 test("parses a MariaDB URL and enforces TLS verification", () => {
   const options = mariaDbOptionsFromUrl("mariadb://app-user:p%40ss%23word@db.example.com:4018/fivezero2", {

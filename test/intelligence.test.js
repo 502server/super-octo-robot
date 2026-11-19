@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {validateIndicator} from "../api/intelligence.js";
+import {validateIndicator} from "../backend/intelligence.js";
 
 test("accepts supported IOC formats",()=>{
  assert.equal(validateIndicator("ip","8.8.8.8"),true);

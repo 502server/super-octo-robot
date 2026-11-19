@@ -20,7 +20,7 @@ export default [
   },
   {
     ...js.configs.recommended,
-    files: ["eslint.config.js", "api/**/*.js", "scripts/**/*.js", "test/**/*.js"],
+    files: ["eslint.config.js", "backend/**/*.js", "scripts/**/*.js", "test/**/*.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

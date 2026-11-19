@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
-import { closeMariaDbPool, getMariaDbPool } from "../api/database.js";
-import { ensureMariaDbStateTable } from "../api/mariadb-schema.js";
+import { closeMariaDbPool, getMariaDbPool } from "../backend/database.js";
+import { ensureMariaDbStateTable } from "../backend/mariadb-schema.js";
 
 export async function migrateMariaDb() {
   const pool = getMariaDbPool();

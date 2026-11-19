@@ -11,7 +11,7 @@ pnpm db:migrate:mariadb
 pnpm db:auth:migrate
 ```
 
-The first command creates the application state table and an empty singleton row. The second runs Better Auth's built-in MySQL/MariaDB migration using `api/auth.js`. These setup commands are safe to repeat.
+The first command creates the application state table and an empty singleton row. The second runs Better Auth's built-in MySQL/MariaDB migration using `backend/auth.js`. These setup commands are safe to repeat.
 
 ## Import the legacy production state
 
