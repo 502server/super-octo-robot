@@ -15,7 +15,7 @@ The first command creates the application state table and an empty singleton row
 
 ## Import the legacy production state
 
-`FLY_DATABASE_URL` is read only by the one-time importer as a PostgreSQL source. It is never used by the application runtime. First run a dry-run and review the collection counts and validation warnings:
+`LEGACY_POSTGRES_URL` is read only by the one-time importer as a PostgreSQL source. It is never used by the application runtime. First run a dry-run and review the collection counts and validation warnings:
 
 ```sh
 pnpm db:import -- --from-database
@@ -36,6 +36,6 @@ The importer validates tenant references, preserves app IDs and existing passwor
 - Confirm the target schema and Better Auth tables exist.
 - Confirm source backup, dry-run counts, and the exact production source before applying.
 - Test bootstrap/login, OAuth, invitations, workspace roles, assets, checks, findings, indicators, alerts, and audit persistence on Vercel Preview.
-- Switch Production only after end-to-end persistence passes; retain Fly and Neon until the rollback window closes.
+- Switch Production only after end-to-end persistence passes; retain the legacy source and rollback snapshot until the rollback window closes.
 
-`001_workspace_intelligence.sql` is the historical PostgreSQL/Neon relational schema. It is not used by the MariaDB runtime and must not be applied to MariaDB. PostgreSQL remains a source-only dependency until the legacy data import is verified.
+`001_workspace_intelligence.sql` is the historical PostgreSQL/Neon relational schema. It is not used by the MariaDB runtime and must not be applied to MariaDB. The legacy PostgreSQL database remains a source-only dependency until its data import is verified.

@@ -15,7 +15,7 @@ const safeText=(v,max=4000)=>String(v??"").slice(0,max);
 const importTime=new Date().toISOString();
 
 export function databaseUrlFor({fromDatabase,env=process.env}) {
- return fromDatabase?env.FLY_DATABASE_URL:env.DATABASE_URL;
+ return fromDatabase?env.LEGACY_POSTGRES_URL:env.DATABASE_URL;
 }
 
 export function buildImportPlan(state,sourceHash) {
@@ -59,7 +59,7 @@ async function main(){
  const args=process.argv.slice(2),apply=args.includes("--apply"),backup=args.includes("--backup-confirmed"),fromDatabase=args.includes("--from-database");
  const databaseUrl=databaseUrlFor({fromDatabase});
  if(apply&&!backup){console.error("Refusing apply without --backup-confirmed.");process.exitCode=2;return}
- if((apply||fromDatabase)&&!databaseUrl){console.error(fromDatabase?"FLY_DATABASE_URL is required for database-sourced imports.":"DATABASE_URL is required for file-sourced imports.");process.exitCode=2;return}
+ if((apply||fromDatabase)&&!databaseUrl){console.error(fromDatabase?"LEGACY_POSTGRES_URL is required for database-sourced imports.":"DATABASE_URL is required for file-sourced imports.");process.exitCode=2;return}
  const {Pool}=await import("pg");
  let pool=null,state,raw,file=null;
  if(fromDatabase){

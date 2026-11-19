@@ -30,14 +30,14 @@ const sampleState = () => ({
   ],
 });
 
-test("uses Fly PostgreSQL only as source and MariaDB only as target", () => {
+test("uses Legacy PostgreSQL only as source and MariaDB only as target", () => {
   assert.equal(
-    databaseUrlFor({ fromDatabase: true, env: { FLY_DATABASE_URL: "source", MARIADB_URL: "target" } }),
+    databaseUrlFor({ fromDatabase: true, env: { LEGACY_POSTGRES_URL: "source", MARIADB_URL: "target" } }),
     "source",
   );
   assert.equal(databaseUrlFor({ fromDatabase: true, env: { MARIADB_URL: "target" } }), undefined);
   assert.equal(
-    databaseUrlFor({ fromDatabase: false, env: { FLY_DATABASE_URL: "source", MARIADB_URL: "target" } }),
+    databaseUrlFor({ fromDatabase: false, env: { LEGACY_POSTGRES_URL: "source", MARIADB_URL: "target" } }),
     "target",
   );
 });

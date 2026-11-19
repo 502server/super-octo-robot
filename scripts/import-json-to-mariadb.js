@@ -10,7 +10,7 @@ import { inspectState } from "./preflight-json-import.js";
 const sourceHash = (value) => crypto.createHash("sha256").update(value).digest("hex");
 
 export function databaseUrlFor({ fromDatabase, env = process.env }) {
-  return fromDatabase ? env.FLY_DATABASE_URL : env.MARIADB_URL;
+  return fromDatabase ? env.LEGACY_POSTGRES_URL : env.MARIADB_URL;
 }
 
 export function buildImportPlan(input, hash) {
@@ -32,10 +32,10 @@ export function buildImportPlan(input, hash) {
 }
 
 async function readPostgresSource() {
-  if (!process.env.FLY_DATABASE_URL) throw new Error("FLY_DATABASE_URL is required with --from-database");
+  if (!process.env.LEGACY_POSTGRES_URL) throw new Error("LEGACY_POSTGRES_URL is required with --from-database");
   const { Pool } = await import("pg");
   const pool = new Pool({
-    connectionString: process.env.FLY_DATABASE_URL,
+    connectionString: process.env.LEGACY_POSTGRES_URL,
     ssl:
       process.env.PGSSLMODE === "require"
         ? { rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED !== "false" }
@@ -48,7 +48,7 @@ async function readPostgresSource() {
     const payload = result.rows[0].payload;
     return {
       state: typeof payload === "string" ? JSON.parse(payload) : payload,
-      source: "Fly PostgreSQL app-state row",
+      source: "Legacy PostgreSQL app-state row",
     };
   } finally {
     await pool.end();

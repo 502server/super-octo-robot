@@ -2,10 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {buildImportPlan,databaseUrlFor} from "../scripts/import-json-to-postgres.js";
 
-test("database-sourced imports require Fly URL, not the preview URL",()=>{
- assert.equal(databaseUrlFor({fromDatabase:true,env:{FLY_DATABASE_URL:"fly-url",DATABASE_URL:"preview-url"}}),"fly-url");
+test("database-sourced imports require legacy PostgreSQL URL, not the preview URL",()=>{
+ assert.equal(databaseUrlFor({fromDatabase:true,env:{LEGACY_POSTGRES_URL:"legacy-url",DATABASE_URL:"preview-url"}}),"legacy-url");
  assert.equal(databaseUrlFor({fromDatabase:true,env:{DATABASE_URL:"preview-url"}}),undefined);
- assert.equal(databaseUrlFor({fromDatabase:false,env:{FLY_DATABASE_URL:"fly-url",DATABASE_URL:"preview-url"}}),"preview-url");
+ assert.equal(databaseUrlFor({fromDatabase:false,env:{LEGACY_POSTGRES_URL:"legacy-url",DATABASE_URL:"preview-url"}}),"preview-url");
 });
 
 const state=()=>({
