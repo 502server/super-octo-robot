@@ -9,6 +9,8 @@ const emptyState = {
   audit: [],
   iocs: [],
   alerts: [],
+  moduleRecords: [],
+  executionLogs: [],
 };
 
 const emptyStateJson = JSON.stringify(emptyState);
@@ -29,8 +31,13 @@ export async function ensureMariaDbStateTable(pool) {
 export function isEmptyAppState(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const known = Object.keys(emptyState);
+  const optionalLegacyKeys = new Set(["moduleRecords", "executionLogs"]);
   return (
     Object.keys(value).every((key) => known.includes(key)) &&
-    known.every((key) => Array.isArray(value[key]) && value[key].length === 0)
+    known.every(
+      (key) =>
+        (optionalLegacyKeys.has(key) && value[key] === undefined) ||
+        (Array.isArray(value[key]) && value[key].length === 0),
+    )
   );
 }

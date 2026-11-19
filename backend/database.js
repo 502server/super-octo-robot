@@ -1,5 +1,7 @@
-import { createPool } from "mysql2/promise";
+import { readFileSync } from "node:fs";
+import mariadb from "mariadb";
 
+const skySqlCa = readFileSync(new URL("./skysql-ca.pem", import.meta.url), "utf8").trim();
 let pool;
 
 export function mariaDbOptionsFromUrl(value = process.env.MARIADB_URL, env = process.env) {
@@ -21,7 +23,8 @@ export function mariaDbOptionsFromUrl(value = process.env.MARIADB_URL, env = pro
     throw new Error("MARIADB_URL must include a host, username, and database name");
   }
 
-  const ca = env.MARIADB_SSL_CA?.replaceAll("\\n", "\n").trim();
+  const configuredCa = env.MARIADB_SSL_CA?.replaceAll("\\n", "\n").trim();
+  const ca = configuredCa || (url.hostname.toLowerCase().endsWith(".skysql.com") ? skySqlCa : undefined);
   return {
     host: url.hostname,
     port: Number(url.port || 3306),
@@ -29,11 +32,8 @@ export function mariaDbOptionsFromUrl(value = process.env.MARIADB_URL, env = pro
     password: decodeURIComponent(url.password),
     database,
     timezone: "Z",
-    waitForConnections: true,
     connectionLimit: Math.max(1, Math.min(Number(env.MARIADB_POOL_MAX || 5), 10)),
-    queueLimit: 0,
     connectTimeout: 10000,
-    enableKeepAlive: true,
     ssl: {
       rejectUnauthorized: true,
       ...(ca ? { ca } : {}),
@@ -43,7 +43,7 @@ export function mariaDbOptionsFromUrl(value = process.env.MARIADB_URL, env = pro
 
 export function getMariaDbPool() {
   if (!pool && process.env.MARIADB_URL) {
-    pool = createPool(mariaDbOptionsFromUrl());
+    pool = mariadb.createPool(mariaDbOptionsFromUrl());
     pool.on("error", () => console.error("MariaDB idle connection error"));
   }
   return pool || null;

@@ -17,6 +17,7 @@ const empty = {
   iocs: [],
   alerts: [],
   moduleRecords: [],
+  executionLogs: [],
 };
 let state = structuredClone(empty);
 let chain = Promise.resolve();
@@ -49,7 +50,17 @@ export function migrateState(target) {
       changed = true;
     }
   }
-  for (const key of ["assets", "findings", "checks", "iocs", "alerts", "invitations", "sessions"]) {
+  for (const key of [
+    "assets",
+    "findings",
+    "checks",
+    "iocs",
+    "alerts",
+    "moduleRecords",
+    "executionLogs",
+    "invitations",
+    "sessions",
+  ]) {
     for (const row of target[key]) {
       if (!row.workspaceId && key !== "invitations" && key !== "sessions") {
         row.workspaceId = workspaceId;
@@ -92,7 +103,7 @@ function parsePayload(payload) {
 }
 
 async function readMariaDbState(executor, lock = false) {
-  const [rows] = await executor.query(
+  const rows = await executor.query(
     `SELECT payload FROM fivezero2_app_state WHERE singleton = 1${lock ? " FOR UPDATE" : ""}`,
   );
   if (!rows.length) {

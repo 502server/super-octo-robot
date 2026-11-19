@@ -1,7 +1,9 @@
 import { betterAuth } from "better-auth";
+import { createMariaDbAuthAdapter } from "./mariadb-auth-adapter.js";
 import { getMariaDbPool } from "./database.js";
 
 const pool = getMariaDbPool();
+const database = pool ? createMariaDbAuthAdapter(pool) : null;
 const hosted =
   process.env.NODE_ENV === "production" || process.env.VERCEL === "1" || process.env.V0_RUNTIME_URL;
 if (!pool && hosted) throw new Error("MARIADB_URL is required for hosted OAuth authentication");
@@ -23,7 +25,7 @@ const baseURL =
   exactOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL) ||
   exactOrigin(process.env.VERCEL_URL) ||
   exactOrigin(process.env.V0_RUNTIME_URL) ||
-  "http://localhost:3000";
+  "https://502-devbot.vercel.app";
 
 const oauthProviderStatus = {
   google: Boolean(pool && process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim()),
@@ -45,7 +47,7 @@ if (oauthProviderStatus.github) {
 }
 
 const developmentOrigins = [
-  "http://localhost:3000",
+  "https://502-devbot.vercel.app",
   process.env.V0_RUNTIME_URL,
   process.env.V0_DEV_APP_URL,
   process.env.V0_BUILD_URL,
@@ -55,6 +57,7 @@ const developmentOrigins = [
   .filter(Boolean);
 
 const productionOrigins = [
+  "https://502-devbot.vercel.app",
   process.env.BETTER_AUTH_URL,
   process.env.VERCEL_URL,
   process.env.VERCEL_PROJECT_PRODUCTION_URL,
@@ -64,7 +67,7 @@ const productionOrigins = [
 
 export const authServer = pool
   ? betterAuth({
-      database: pool,
+      database,
       baseURL,
       emailAndPassword: { enabled: false },
       socialProviders,

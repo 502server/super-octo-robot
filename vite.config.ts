@@ -4,6 +4,7 @@ import { defineConfig } from "vite";
 
 const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 const previewHost = process.env.V0_RUNTIME_URL ? new URL(process.env.V0_RUNTIME_URL).hostname : undefined;
+const apiOrigin = process.env.VITE_API_ORIGIN || "https://502-devbot.vercel.app";
 
 export default defineConfig({
   root: `${projectRoot}/web`,
@@ -15,17 +16,17 @@ export default defineConfig({
     ...(previewHost ? { allowedHosts: [previewHost] } : {}),
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: apiOrigin,
         changeOrigin: true,
         configure(proxy) {
-          proxy.on("proxyReq", (proxyRequest, request) => {
-            proxyRequest.setHeader("x-forwarded-proto", "http");
-            if (request.headers.origin) proxyRequest.setHeader("origin", "http://localhost:3000");
+          proxy.on("proxyReq", (proxyRequest) => {
+            proxyRequest.setHeader("x-forwarded-proto", new URL(apiOrigin).protocol.slice(0, -1));
+            proxyRequest.setHeader("origin", apiOrigin);
           });
         },
       },
       "/icons": {
-        target: "http://localhost:3000",
+        target: apiOrigin,
         changeOrigin: true,
       },
     },

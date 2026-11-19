@@ -1,10 +1,13 @@
+import { AiAssistant } from "./ai-assistant";
+import { BrandMark } from "./brand-mark";
+
 export function DashboardShell() {
   return (
     <div id="dashboard" className="app-shell hidden">
       <button type="button" className="nav-scrim" id="nav-scrim" aria-label="Close navigation menu" hidden />
       <aside id="sidebar" className="sidebar" aria-label="Primary navigation">
         <a className="brand" href="#dashboard" aria-label="Fivezero2 home">
-          <span className="brand-mark">5</span>
+          <BrandMark />
           <span>
             fivezero2<span className="brand-dot">.group</span>
           </span>
@@ -29,6 +32,16 @@ export function DashboardShell() {
             ⌄
           </span>
         </div>
+        <label className="sidebar-search">
+          <img src="/icons/Search.svg?tone=muted&v=2" alt="" aria-hidden="true" />
+          <input
+            id="sidebar-search"
+            type="search"
+            placeholder="Search menu…"
+            aria-label="Search navigation menu"
+          />
+          <kbd aria-hidden="true">⌘ K</kbd>
+        </label>
         <nav id="sidebar-nav" className="sidebar-nav" aria-label="Workspace sections" />
         <div className="sidebar-bottom">
           <div className="feed-status">
@@ -63,7 +76,12 @@ export function DashboardShell() {
           </div>
           <div className="topbar-actions">
             <label className="global-search">
-              <img className="header-svg-icon" src="/icons/Search.svg?tone=muted" alt="" aria-hidden="true" />
+              <img
+                className="header-svg-icon"
+                src="/icons/Search.svg?tone=muted&v=2"
+                alt=""
+                aria-hidden="true"
+              />
               <input
                 id="global-search"
                 type="search"
@@ -81,7 +99,7 @@ export function DashboardShell() {
             >
               <img
                 className="header-svg-icon"
-                src="/icons/RefreshCw.svg?tone=muted"
+                src="/icons/RefreshCw.svg?tone=muted&v=2"
                 alt=""
                 aria-hidden="true"
               />
@@ -93,6 +111,7 @@ export function DashboardShell() {
         </header>
         <div id="view-root" className="view-root" tabIndex={-1} />
       </main>
+      <AiAssistant />
     </div>
   );
 }

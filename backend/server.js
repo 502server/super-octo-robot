@@ -19,8 +19,12 @@ import {
   assetVerificationChallenge,
 } from "./store.js";
 import { hashToken, safeEqual, normalizeOrigin, isPrivateAddress } from "./security.js";
+import { createAssistantRouter } from "./assistant.js";
 import { createIntegrationRouter } from "./integrations.js";
 import { createIntelligenceRouter } from "./intelligence.js";
+import { createFeedsRouter } from "./feeds.js";
+import { createSystemRouter } from "./system.js";
+import { createPlaygroundRouter } from "./playground.js";
 import { roleGuard, canAssignRole, sameWorkspace } from "./access.js";
 const app = express(),
   port = Number(process.env.PORT || 3000),
@@ -167,9 +171,9 @@ function oauthAppUser(identity, role, workspaceId) {
   };
 }
 const iconTones = {
-  muted: "#8795aa",
-  accent: "#52d4da",
-  critical: "#ff7181",
+  muted: "#929292",
+  accent: "#e02020",
+  critical: "#f04444",
   white: "#e6edf7",
   blue: "#77a8ff",
   amber: "#f2b96c",
@@ -229,8 +233,12 @@ app.get(["/icons/:name.svg", "/api/icons/:name.svg"], (req, res) => {
 });
 app.get("/api/health", (_, res) => res.json({ ok: true, service: "fivezero2.group", time: now() }));
 app.get("/api/auth-status", (_, res) => res.json({ providers: oauthProviderStatus }));
+app.use("/api/assistant", createAssistantRouter(auth));
 app.use("/api/integrations", createIntegrationRouter(auth));
 app.use("/api/intel", createIntelligenceRouter(auth));
+app.use("/api/feeds", createFeedsRouter(auth));
+app.use("/api/system", createSystemRouter(auth));
+app.use("/api/playground", createPlaygroundRouter(auth));
 app.post("/api/oauth/complete", async (req, res) => {
   const identity = await oauthIdentityFromRequest(req);
   if (!identity) return res.status(401).json({ error: "OAuth session was not found. Sign in again." });
@@ -631,8 +639,8 @@ app.patch("/api/findings/:id", auth, roleGuard("owner", "admin", "analyst"), asy
 app.get("/api/audit", auth, (req, res) =>
   res.json({ events: read((s) => s.audit.filter((x) => sameWorkspace(x, req.workspaceId)).slice(0, 200)) }),
 );
-if (process.env.NODE_ENV === "production" && process.env.VERCEL !== "1") app.use(express.static("public"));
-app.get("/", (_req, res) => res.redirect(302, "/index.html"));
+app.use(express.static("public"));
+app.get("/", (_req, res) => res.sendFile("public/index.html", { root: "." }));
 app.use((err, req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
