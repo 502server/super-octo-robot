@@ -1,5 +1,7 @@
 import js from "@eslint/js";
+import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+import tseslint from "typescript-eslint";
 
 const qualityRules = {
   eqeqeq: ["error", "always", { null: "ignore" }],
@@ -35,5 +37,25 @@ export default [
       globals: globals.browser,
     },
     rules: qualityRules,
+  },
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: ["**/*.{ts,tsx}"],
+  })),
+  {
+    files: ["web/src/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
+  {
+    ...reactHooks.configs.flat.recommended,
+    files: ["web/src/**/*.{ts,tsx}"],
+  },
+  {
+    files: ["vite.config.ts"],
+    languageOptions: {
+      globals: globals.node,
+    },
   },
 ];

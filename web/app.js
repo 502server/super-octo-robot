@@ -1428,3 +1428,5 @@ document.addEventListener("keydown", (event) => {
 loadOAuthProviderStatus();
 if (new URLSearchParams(window.location.search).get("oauth") === "complete") completeOAuth();
 else api("/me").then(showDashboard).catch(showAuth);
+
+export {};
