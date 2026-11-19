@@ -224,7 +224,10 @@ function setMobileNavigation(open, { restoreFocus = false } = {}) {
 function renderNavigation(active = "dashboard") {
   const query = $("#sidebar-search").value.trim().toLocaleLowerCase();
   const groups = navGroups
-    .map((group) => ({ ...group, items: group.items.filter(([, label]) => label.toLocaleLowerCase().includes(query)) }))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(([, label]) => label.toLocaleLowerCase().includes(query)),
+    }))
     .filter((group) => group.items.length);
   $("#sidebar-nav").innerHTML = groups.length
     ? groups
@@ -850,7 +853,9 @@ function renderCloudShell() {
       });
       const pending = output.lastElementChild;
       if (pending?.classList.contains("terminal-system")) pending.remove();
-      String(result).split("\n").forEach((line) => writeTerminalLine("terminal-result", line));
+      String(result)
+        .split("\n")
+        .forEach((line) => writeTerminalLine("terminal-result", line));
     } catch (error) {
       const pending = output.lastElementChild;
       if (pending?.classList.contains("terminal-system")) pending.remove();

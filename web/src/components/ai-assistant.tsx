@@ -66,7 +66,10 @@ export function AiAssistant() {
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          messages: conversation.map(({ role, content: messageContent }) => ({ role, content: messageContent })),
+          messages: conversation.map(({ role, content: messageContent }) => ({
+            role,
+            content: messageContent,
+          })),
           page: currentPage,
           includeContext,
         }),
@@ -154,83 +157,88 @@ export function AiAssistant() {
         aria-label="DeepSeek analyst assistant"
         hidden={!isOpen}
       >
-          <header className="assistant-header">
-            <div>
-              <span className="assistant-eyebrow">WORKSPACE COPILOT</span>
-              <h2>DeepSeek assistant</h2>
-              <p>DeepSeek V4.1 Flash · Vercel AI Gateway</p>
-            </div>
-            <button
-              type="button"
-              className="assistant-close"
-              aria-label="Close assistant"
-              onClick={() => setIsOpen(false)}
-            >
-              ×
-            </button>
-          </header>
-
-          <div className="assistant-context-note" role="note">
-            Defensive guidance only. The assistant cannot run commands or change records.
+        <header className="assistant-header">
+          <div>
+            <span className="assistant-eyebrow">WORKSPACE COPILOT</span>
+            <h2>DeepSeek assistant</h2>
+            <p>DeepSeek V4.1 Flash · Vercel AI Gateway</p>
           </div>
+          <button
+            type="button"
+            className="assistant-close"
+            aria-label="Close assistant"
+            onClick={() => setIsOpen(false)}
+          >
+            ×
+          </button>
+        </header>
 
-          <div className="assistant-messages" aria-live="polite" aria-label="Conversation">
-            {messages.map((message) => (
-              <article className={`assistant-message ${message.role}`} key={message.id}>
-                <span>{message.role === "assistant" ? "DEEPSEEK" : "YOU"}</span>
-                <p>{message.content || (isStreaming ? <i className="assistant-typing" aria-label="Thinking" /> : "")}</p>
-              </article>
+        <div className="assistant-context-note" role="note">
+          Defensive guidance only. The assistant cannot run commands or change records.
+        </div>
+
+        <div className="assistant-messages" aria-live="polite" aria-label="Conversation">
+          {messages.map((message) => (
+            <article className={`assistant-message ${message.role}`} key={message.id}>
+              <span>{message.role === "assistant" ? "DEEPSEEK" : "YOU"}</span>
+              <p>
+                {message.content ||
+                  (isStreaming ? <i className="assistant-typing" aria-label="Thinking" /> : "")}
+              </p>
+            </article>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {messages.length === 1 && (
+          <div className="assistant-prompts" aria-label="Suggested prompts">
+            {quickPrompts.map((prompt) => (
+              <button type="button" key={prompt} onClick={() => setDraft(prompt)}>
+                {prompt}
+              </button>
             ))}
-            <div ref={messagesEndRef} />
           </div>
+        )}
 
-          {messages.length === 1 && (
-            <div className="assistant-prompts" aria-label="Suggested prompts">
-              {quickPrompts.map((prompt) => (
-                <button type="button" key={prompt} onClick={() => setDraft(prompt)}>
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          )}
+        <label className="assistant-context-toggle">
+          <input
+            type="checkbox"
+            checked={includeContext}
+            onChange={(event) => setIncludeContext(event.target.checked)}
+          />
+          <span>
+            Share a limited workspace summary with DeepSeek for this request
+            <small>Only the current menu&apos;s records and workspace counts are included.</small>
+          </span>
+        </label>
 
-          <label className="assistant-context-toggle">
-            <input
-              type="checkbox"
-              checked={includeContext}
-              onChange={(event) => setIncludeContext(event.target.checked)}
-            />
-            <span>
-              Share a limited workspace summary with DeepSeek for this request
-              <small>Only the current menu&apos;s records and workspace counts are included.</small>
-            </span>
+        <form className="assistant-composer" onSubmit={sendMessage}>
+          <label className="sr-only" htmlFor="assistant-prompt">
+            Ask the DeepSeek assistant
           </label>
-
-          <form className="assistant-composer" onSubmit={sendMessage}>
-            <label className="sr-only" htmlFor="assistant-prompt">
-              Ask the DeepSeek assistant
-            </label>
-            <textarea
-              ref={inputRef}
-              id="assistant-prompt"
-              value={draft}
-              maxLength={2000}
-              rows={2}
-              placeholder="Ask about the current module…"
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            {isStreaming ? (
-              <button type="button" className="assistant-send stop" onClick={stopResponse}>
-                Stop
-              </button>
-            ) : (
-              <button type="submit" className="assistant-send" disabled={!draft.trim()}>
-                Send
-              </button>
-            )}
-          </form>
-          <p className="assistant-footnote">Do not share passwords, tokens, or secrets. Responses are advisory.</p>
+          <textarea
+            ref={inputRef}
+            id="assistant-prompt"
+            value={draft}
+            maxLength={2000}
+            rows={2}
+            placeholder="Ask about the current module…"
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          {isStreaming ? (
+            <button type="button" className="assistant-send stop" onClick={stopResponse}>
+              Stop
+            </button>
+          ) : (
+            <button type="submit" className="assistant-send" disabled={!draft.trim()}>
+              Send
+            </button>
+          )}
+        </form>
+        <p className="assistant-footnote">
+          Do not share passwords, tokens, or secrets. Responses are advisory.
+        </p>
       </section>
 
       <button

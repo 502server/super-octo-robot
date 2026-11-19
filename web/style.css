@@ -3679,7 +3679,9 @@ body {
   box-shadow: 0 8px 30px rgb(0 0 0 / 38%);
   font: 600 12px/1 var(--font);
   cursor: pointer;
-  transition: transform 160ms ease, background-color 160ms ease;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease;
 }
 .assistant-launcher:hover {
   transform: translateY(-2px);

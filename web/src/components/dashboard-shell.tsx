@@ -34,7 +34,12 @@ export function DashboardShell() {
         </div>
         <label className="sidebar-search">
           <img src="/icons/Search.svg?tone=muted&v=2" alt="" aria-hidden="true" />
-          <input id="sidebar-search" type="search" placeholder="Search menu…" aria-label="Search navigation menu" />
+          <input
+            id="sidebar-search"
+            type="search"
+            placeholder="Search menu…"
+            aria-label="Search navigation menu"
+          />
           <kbd aria-hidden="true">⌘ K</kbd>
         </label>
         <nav id="sidebar-nav" className="sidebar-nav" aria-label="Workspace sections" />

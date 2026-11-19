@@ -4,9 +4,7 @@ import rateLimit from "express-rate-limit";
 import { Router } from "express";
 import { z } from "zod";
 
-const packageMetadata = JSON.parse(
-  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
-);
+const packageMetadata = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const diagnosticCommands = ["status", "version", "kernel", "uptime", "whoami", "date"];
 const shellCommand = z.object({ command: z.enum(diagnosticCommands) }).strict();
 
@@ -40,7 +38,12 @@ export function formatUptime(totalSeconds) {
   return `${days}d ${hours}h ${minutes}m ${remainder}s`;
 }
 
-export function runCloudShellCommand(command, user, metadata = getSystemMetadata(), currentDate = new Date()) {
+export function runCloudShellCommand(
+  command,
+  user,
+  metadata = getSystemMetadata(),
+  currentDate = new Date(),
+) {
   switch (command) {
     case "status":
       return [

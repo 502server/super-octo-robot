@@ -39,6 +39,12 @@ test("read-only CloudShell formats supported diagnostics without executing arbit
 
   assert.equal(formatUptime(3661), "0d 1h 1m 1s");
   assert.match(runCloudShellCommand("kernel", {}, metadata), /Linux 6\.8\.0/);
-  assert.match(runCloudShellCommand("whoami", { username: "analyst", role: "viewer" }, metadata), /analyst \(viewer\)/);
-  assert.equal(runCloudShellCommand("bash -c id", {}, metadata), "Command unavailable. Type help for supported diagnostics.");
+  assert.match(
+    runCloudShellCommand("whoami", { username: "analyst", role: "viewer" }, metadata),
+    /analyst \(viewer\)/,
+  );
+  assert.equal(
+    runCloudShellCommand("bash -c id", {}, metadata),
+    "Command unavailable. Type help for supported diagnostics.",
+  );
 });

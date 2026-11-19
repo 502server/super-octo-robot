@@ -115,7 +115,8 @@ export function buildAssistantContext(state, workspaceId, page) {
     pageRecords = iocs;
   } else if (["alerts", "dashboard", "threat-overview"].includes(page)) {
     pageRecords = [...alerts].sort(
-      (left, right) => new Date(right.updatedAt || right.createdAt || 0) - new Date(left.updatedAt || left.createdAt || 0),
+      (left, right) =>
+        new Date(right.updatedAt || right.createdAt || 0) - new Date(left.updatedAt || left.createdAt || 0),
     );
   } else if (["assets", "attack-surface"].includes(page)) {
     pageRecords = assets;
@@ -138,7 +139,8 @@ export function buildAssistantContext(state, workspaceId, page) {
       moduleRecords: moduleRecords.length,
     },
     currentMenuRecords: pageRecords.slice(0, 15).map(toSafeRecord),
-    dataNote: "Records are workspace-scoped and were entered or imported by workspace members; no external feed was queried.",
+    dataNote:
+      "Records are workspace-scoped and were entered or imported by workspace members; no external feed was queried.",
   };
 }
 
@@ -209,7 +211,10 @@ export function createAssistantRouter(auth) {
         maxOutputTokens: 700,
         abortSignal: controller.signal,
         onError({ error }) {
-          console.error("[ai-assistant] DeepSeek stream failed", error instanceof Error ? error.name : "unknown");
+          console.error(
+            "[ai-assistant] DeepSeek stream failed",
+            error instanceof Error ? error.name : "unknown",
+          );
         },
       });
 
@@ -219,7 +224,8 @@ export function createAssistantRouter(auth) {
       }
       if (!res.destroyed) res.end();
     } catch {
-      if (!res.headersSent) return res.status(502).json({ error: "The DeepSeek assistant is unavailable right now." });
+      if (!res.headersSent)
+        return res.status(502).json({ error: "The DeepSeek assistant is unavailable right now." });
       if (!res.destroyed) res.end();
     } finally {
       clearTimeout(timeout);
