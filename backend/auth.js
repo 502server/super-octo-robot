@@ -1,7 +1,9 @@
 import { betterAuth } from "better-auth";
+import { createMariaDbAuthAdapter } from "./mariadb-auth-adapter.js";
 import { getMariaDbPool } from "./database.js";
 
 const pool = getMariaDbPool();
+const database = pool ? createMariaDbAuthAdapter(pool) : null;
 const hosted =
   process.env.NODE_ENV === "production" || process.env.VERCEL === "1" || process.env.V0_RUNTIME_URL;
 if (!pool && hosted) throw new Error("MARIADB_URL is required for hosted OAuth authentication");
@@ -64,7 +66,7 @@ const productionOrigins = [
 
 export const authServer = pool
   ? betterAuth({
-      database: pool,
+      database,
       baseURL,
       emailAndPassword: { enabled: false },
       socialProviders,

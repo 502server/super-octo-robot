@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mariaDbOptionsFromUrl } from "../backend/database.js";
+import { buildMariaDbWhereClause } from "../backend/mariadb-auth-adapter.js";
+import { createMariaDbAuthTableStatements } from "../backend/mariadb-auth-schema.js";
+import { getAuthTables } from "better-auth/db";
 
 test("parses a MariaDB URL and enforces TLS verification", () => {
   const options = mariaDbOptionsFromUrl("mariadb://app-user:p%40ss%23word@db.example.com:4018/fivezero2", {
@@ -41,4 +44,34 @@ test("adds an optional provider CA without disabling certificate checks", () => 
 
   assert.equal(options.ssl.rejectUnauthorized, true);
   assert.equal(options.ssl.ca, "-----BEGIN CERTIFICATE-----\nexample\n-----END CERTIFICATE-----");
+});
+
+test("builds parameterized MariaDB filters and joins empty IN predicates safely", () => {
+  assert.deepEqual(
+    buildMariaDbWhereClause([
+      { field: "email", value: "Alice@Example.com", mode: "insensitive" },
+      { field: "status", value: [], operator: "in" },
+    ]),
+    { sql: " WHERE LOWER(`email`) = ? AND 1 = 0", values: ["alice@example.com"] },
+  );
+});
+
+test("rejects unsafe SQL identifiers and escapes LIKE wildcards", () => {
+  assert.throws(
+    () => buildMariaDbWhereClause([{ field: "email` OR 1=1 --", value: "attacker@example.com" }]),
+    /invalid SQL identifier/,
+  );
+
+  const filter = buildMariaDbWhereClause([{ field: "email", value: "a%_b", operator: "contains" }]);
+  assert.equal(filter.sql, " WHERE BINARY `email` LIKE ? ESCAPE '\\\\'");
+  assert.deepEqual(filter.values, ["%a\\%\\_b%"]);
+});
+
+test("generates idempotent Better Auth table DDL from the current schema", () => {
+  const statements = createMariaDbAuthTableStatements(getAuthTables({}));
+
+  assert.equal(statements.length, 4);
+  assert.match(statements[0], /CREATE TABLE IF NOT EXISTS `user`/);
+  assert.match(statements[0], /UNIQUE KEY `uniq_user_email`/);
+  assert.match(statements[1], /FOREIGN KEY \(`userId`\) REFERENCES `user` \(`id`\) ON DELETE CASCADE/);
 });

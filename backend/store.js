@@ -92,7 +92,7 @@ function parsePayload(payload) {
 }
 
 async function readMariaDbState(executor, lock = false) {
-  const [rows] = await executor.query(
+  const rows = await executor.query(
     `SELECT payload FROM fivezero2_app_state WHERE singleton = 1${lock ? " FOR UPDATE" : ""}`,
   );
   if (!rows.length) {
