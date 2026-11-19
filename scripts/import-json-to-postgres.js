@@ -6,7 +6,8 @@ import {inspectState,deterministicUuid} from "./preflight-json-import.js";
 
 const keys=["workspaces","users","invitations","sessions","assets","findings","checks","audit","iocs","alerts"];
 const iso=(v,fallback=null)=>{if(v===undefined||v===null||v==="")return fallback;const d=typeof v==="number"?new Date(v):new Date(v);if(Number.isNaN(d.getTime()))throw Error("Invalid timestamp in source data");return d.toISOString()};
-const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nconst idMap=(state,key)=>new Map((state[key]||[]).map(r=>[String(r.id),uuidPattern.test(String(r.id))?String(r.id):deterministicUuid(key,r.id)]));
+const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const idMap=(state,key)=>new Map((state[key]||[]).map(r=>[String(r.id),uuidPattern.test(String(r.id))?String(r.id):deterministicUuid(key,r.id)]));
 const mapped=(map,value)=>value==null?null:map.get(String(value))||null;
 const hash=v=>crypto.createHash("sha256").update(String(v)).digest("hex");
 const safeText=(v,max=4000)=>String(v??"").slice(0,max);
@@ -34,7 +35,9 @@ export function buildImportPlan(state,sourceHash) {
  }
  const enumChecks=[...(state.users||[]).map(x=>["users",x.id,["owner","admin","analyst","viewer"].includes(x.role||"viewer")]),...(state.invitations||[]).map(x=>["workspace_invitations",x.id,["admin","analyst","viewer"].includes(x.role)]),...(state.iocs||[]).map(x=>["iocs",x.id,["ip","domain","url","hash","email","cert"].includes(x.type)&&["low","medium","high","critical"].includes(x.severity||"medium")&&["active","review","closed"].includes(x.status||"active")]),...(state.alerts||[]).map(x=>["alerts",x.id,["low","medium","high","critical"].includes(x.severity||"medium")&&["open","acknowledged","investigating","resolved","false_positive"].includes(x.status||"open")]),...(state.findings||[]).map(x=>["findings",x.id,["low","medium","high","critical"].includes(x.severity||"medium")&&["open","accepted","fixed","false_positive"].includes(x.status||"open")])];
  for(const [collection,rowId,valid] of enumChecks)if(!valid)return {ok:false,issues:[{collection,code:"ENUM_VALUE_INVALID",rowId:String(rowId)}]};
- const uniqueness=[["users",(state.users||[]).map(x=>String(x.username||"").toLowerCase())],["workspaces",(state.workspaces||[]).map(x=>String(x.slug||"").toLowerCase())],["indicators",(state.iocs||[]).map(x=>String(x.workspaceId)+"|"+x.type+"|"+String(x.value).trim().toLowerCase())]];\n for(const [collection,values] of uniqueness)if(new Set(values).size!==values.length)return {ok:false,issues:[{collection,code:"UNIQUE_CONSTRAINT_COLLISION"}]};\n const counts=Object.fromEntries(Object.entries(tables).map(([k,v])=>[k,v.length]));
+ const uniqueness=[["users",(state.users||[]).map(x=>String(x.username||"").toLowerCase())],["workspaces",(state.workspaces||[]).map(x=>String(x.slug||"").toLowerCase())],["indicators",(state.iocs||[]).map(x=>String(x.workspaceId)+"|"+x.type+"|"+String(x.value).trim().toLowerCase())]];
+ for(const [collection,values] of uniqueness)if(new Set(values).size!==values.length)return {ok:false,issues:[{collection,code:"UNIQUE_CONSTRAINT_COLLISION"}]};
+ const counts=Object.fromEntries(Object.entries(tables).map(([k,v])=>[k,v.length]));
  return {ok:true,sourceHash,tables,counts,sessionPolicy:"Existing sessions are intentionally not imported; all users must sign in again after cutover.",securityPolicy:"Asset challenges are SHA-256 hashed; users must re-verify DNS after cutover if the runtime still expects plaintext challenges."};
 }
 
