@@ -211,7 +211,7 @@ function renderNavigation(active = "dashboard") {
     .map(
       (group) => `
     <div class="nav-group"><p class="nav-label">${group.label}</p>
-      ${group.items.map(([id, label, icon]) => `<button type="button" class="nav-link ${id === active ? "active" : ""}" data-page="${id}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}" ${id === active ? 'aria-current="page"' : ""}>${iconMarkup(icon, "nav-icon", id === active ? "accent" : "muted")}<span>${escapeHTML(label)}</span>${id === "alerts" ? '<span class="nav-count" id="nav-alert-count">0</span>' : ""}</button>`).join("")}
+      ${group.items.map(([id, label, icon]) => `<button type="button" class="nav-link ${id === active ? "active" : ""}" data-page="${id}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}" ${id === active ? 'aria-current="page"' : ""}>${iconMarkup(icon, "nav-icon", id === active ? "white" : "muted")}<span>${escapeHTML(label)}</span>${id === "alerts" ? '<span class="nav-count" id="nav-alert-count">0</span>' : ""}</button>`).join("")}
     </div>`,
     )
     .join("");
@@ -1354,8 +1354,8 @@ async function loadOAuthProviderStatus() {
       .filter((provider) => providers[provider])
       .map((provider) => (provider === "google" ? "Google" : "GitHub"));
     $("#provider-note").textContent = ready.length
-      ? `${ready.join(" and ")} sign-in is configured. New members still need a workspace invitation.`
-      : "Google and GitHub OAuth credentials must be configured by an administrator.";
+      ? `OAuth sign-in is available with ${ready.join(" and ")}. New accounts require a workspace invitation.`
+      : "OAuth sign-in is unavailable. Use your workspace username and password.";
   } catch {
     $("#provider-note").textContent = "OAuth provider status is unavailable.";
   }

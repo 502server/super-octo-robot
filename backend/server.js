@@ -167,9 +167,9 @@ function oauthAppUser(identity, role, workspaceId) {
   };
 }
 const iconTones = {
-  muted: "#8795aa",
-  accent: "#52d4da",
-  critical: "#ff7181",
+  muted: "#929292",
+  accent: "#e02020",
+  critical: "#f04444",
   white: "#e6edf7",
   blue: "#77a8ff",
   amber: "#f2b96c",

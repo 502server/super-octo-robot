@@ -1,10 +1,12 @@
+import { BrandMark } from "./brand-mark";
+
 export function DashboardShell() {
   return (
     <div id="dashboard" className="app-shell hidden">
       <button type="button" className="nav-scrim" id="nav-scrim" aria-label="Close navigation menu" hidden />
       <aside id="sidebar" className="sidebar" aria-label="Primary navigation">
         <a className="brand" href="#dashboard" aria-label="Fivezero2 home">
-          <span className="brand-mark">5</span>
+          <BrandMark />
           <span>
             fivezero2<span className="brand-dot">.group</span>
           </span>

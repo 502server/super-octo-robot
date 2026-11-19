@@ -1,31 +1,62 @@
+import { BrandMark } from "./brand-mark";
+
+function AuthArrow() {
+  return (
+    <svg className="auth-action-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M4 10h11m-4-4 4 4-4 4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function AuthScreen() {
   return (
     <section id="auth" className="auth-screen" aria-labelledby="auth-title">
       <div className="auth-brand">
-        <span className="brand-mark">5</span>
+        <BrandMark />
         <span>
           fivezero2<span className="brand-dot">.group</span>
         </span>
       </div>
       <div className="auth-card">
         <div className="auth-kicker">
-          <span className="pulse-dot" /> FIVEZERO2 SECURITY CONSOLE
+          <span className="pulse-dot" /> WORKSPACE SIGN-IN
         </div>
-        <h1 id="auth-title">Sign in to your account</h1>
-        <p className="auth-copy">Access your threat intelligence workspace.</p>
+        <h1 id="auth-title">Sign in to your workspace</h1>
+        <p className="auth-copy">Use your organization account or a linked identity provider.</p>
         <div className="auth-tabs" id="auth-tabs" role="tablist" aria-label="Workspace access">
           <button type="button" className="auth-tab active" data-tab="login" role="tab" aria-selected="true">
             Sign in
           </button>
           <button type="button" className="auth-tab" data-tab="bootstrap" role="tab" aria-selected="false">
-            Enterprise Access
+            First-time setup
           </button>
         </div>
         <div className="social-login" id="social-login">
           <button className="provider-button" type="button" data-provider="Google">
-            <span className="google-mark" aria-hidden="true">
-              G
-            </span>
+            <svg className="google-mark" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="#4285F4"
+                d="M21.35 12.25c0-.78-.07-1.54-.2-2.25H12v4.26h5.24a4.48 4.48 0 0 1-1.95 2.94v2.4h3.15c1.84-1.7 2.91-4.2 2.91-7.35Z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 22c2.64 0 4.86-.88 6.48-2.4l-3.15-2.4c-.87.59-1.98.94-3.33.94-2.56 0-4.72-1.73-5.5-4.05H3.25v2.48A9.99 9.99 0 0 0 12 22Z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M6.5 14.09a6.02 6.02 0 0 1 0-4.18V7.43H3.25a10 10 0 0 0 0 9.14l3.25-2.48Z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.86c1.44 0 2.73.5 3.75 1.5l2.82-2.82A9.43 9.43 0 0 0 12 2a9.99 9.99 0 0 0-8.75 5.43L6.5 9.91c.78-2.32 2.94-4.05 5.5-4.05Z"
+              />
+            </svg>
             Continue with Google
           </button>
           <button className="provider-button" type="button" data-provider="GitHub">
@@ -38,7 +69,7 @@ export function AuthScreen() {
             Continue with GitHub
           </button>
           <p className="provider-note" id="provider-note">
-            Google and GitHub sign-in require configured OAuth credentials.
+            Use Google or GitHub if your workspace account is linked.
           </p>
         </div>
         <div className="auth-divider" id="auth-divider">
@@ -56,7 +87,7 @@ export function AuthScreen() {
             required
           />
           <button className="primary-button auth-submit" type="submit">
-            Sign in <span aria-hidden="true">→</span>
+            Sign in <AuthArrow />
           </button>
         </form>
         <form id="bootstrap-form" className="auth-form hidden">
@@ -78,7 +109,7 @@ export function AuthScreen() {
           </label>
           <input id="owner-password" name="password" type="password" minLength={12} required />
           <button className="primary-button auth-submit" type="submit">
-            Initialize workspace <span aria-hidden="true">→</span>
+            Initialize workspace <AuthArrow />
           </button>
         </form>
         <form id="oauth-invitation-form" className="auth-form hidden">
@@ -95,7 +126,7 @@ export function AuthScreen() {
             required
           />
           <button className="primary-button auth-submit" type="submit">
-            Accept invitation <span aria-hidden="true">→</span>
+            Accept invitation <AuthArrow />
           </button>
         </form>
         <form id="oauth-bootstrap-form" className="auth-form hidden">
@@ -112,21 +143,25 @@ export function AuthScreen() {
             required
           />
           <button className="primary-button auth-submit" type="submit">
-            Initialize workspace <span aria-hidden="true">→</span>
+            Initialize workspace <AuthArrow />
           </button>
         </form>
         <p id="auth-message" className="form-message" role="status" aria-live="polite" />
         <div className="auth-foot">
           <span>
-            <span className="lock-icon" aria-hidden="true">
-              ▣
-            </span>{" "}
+            <svg className="lock-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+              <path
+                d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
+            </svg>
             Session protected · Workspace isolated
           </span>
-          <span className="powered-by">Powered by Red Hat &amp; Linux</span>
         </div>
       </div>
-      <div className="auth-caption">THREAT INTELLIGENCE · EXPOSURE · RESPONSE</div>
     </section>
   );
 }
