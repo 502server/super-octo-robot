@@ -21,7 +21,7 @@ npm install
 npm start
 ```
 
-Open http://localhost:3000. Set unique long values for BOOTSTRAP_TOKEN and SESSION_SECRET before starting. Without MARIADB_URL, local development state is stored in data/state.json. With MARIADB_URL, run `pnpm db:migrate:mariadb` and `pnpm db:auth:migrate` first; MariaDB is authoritative and local-file fallback is disabled in hosted environments.
+Open the live application at https://502-devbot.vercel.app. Set unique long values for BOOTSTRAP_TOKEN and SESSION_SECRET before starting. Without MARIADB_URL, local development state is stored in data/state.json. With MARIADB_URL, run `pnpm db:migrate:mariadb` and `pnpm db:auth:migrate` first; MariaDB is authoritative and local-file fallback is disabled in hosted environments.
 
 ## MariaDB runtime
 

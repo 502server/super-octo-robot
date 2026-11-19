@@ -25,7 +25,7 @@ const baseURL =
   exactOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL) ||
   exactOrigin(process.env.VERCEL_URL) ||
   exactOrigin(process.env.V0_RUNTIME_URL) ||
-  "http://localhost:3000";
+  "https://502-devbot.vercel.app";
 
 const oauthProviderStatus = {
   google: Boolean(pool && process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim()),
@@ -47,7 +47,7 @@ if (oauthProviderStatus.github) {
 }
 
 const developmentOrigins = [
-  "http://localhost:3000",
+  "https://502-devbot.vercel.app",
   process.env.V0_RUNTIME_URL,
   process.env.V0_DEV_APP_URL,
   process.env.V0_BUILD_URL,
@@ -57,6 +57,7 @@ const developmentOrigins = [
   .filter(Boolean);
 
 const productionOrigins = [
+  "https://502-devbot.vercel.app",
   process.env.BETTER_AUTH_URL,
   process.env.VERCEL_URL,
   process.env.VERCEL_PROJECT_PRODUCTION_URL,
