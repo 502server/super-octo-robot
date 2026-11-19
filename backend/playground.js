@@ -4,6 +4,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { roleGuard } from "./access.js";
 import { OPENSHIFT_API_BASE } from "./integrations.js";
+import { listExecutionLogs, logExecution } from "./execution-logs.js";
 
 const namespace = "gecko111gamers-dev";
 const managerLabel = "app.kubernetes.io/managed-by";
@@ -288,11 +289,18 @@ async function runCommand(rawCommand, user, token) {
   throw new Error("Command unavailable. Type help to see supported OpenShift commands.");
 }
 
-export function createPlaygroundRouter(auth) {
+export function createPlaygroundRouter(auth, executionLogService = { logExecution, listExecutionLogs }) {
   const router = Router();
   const allowLabAccess = roleGuard("owner", "admin", "analyst");
   const limiter = rateLimit({ windowMs: 60000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false });
-  router.use(auth, allowLabAccess);
+  router.use(auth);
+
+  router.get("/execution-logs", limiter, (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json({ logs: executionLogService.listExecutionLogs(req.workspaceId, "playground") });
+  });
+
+  router.use(allowLabAccess);
 
   router.get("/state", limiter, async (req, res) => {
     const token = process.env.OPENSHIFT_USER_TOKEN?.trim();
@@ -307,30 +315,76 @@ export function createPlaygroundRouter(auth) {
 
   router.post("/command", limiter, async (req, res) => {
     const parsed = commandSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "Enter one supported command." });
-    if (parsed.data.command === "help") {
-      return res.json({
-        lines: [
-          "Commands run against your real OpenShift project, not a local Docker daemon.",
-          "  kubectl get pods|deployments|services",
-          "  kubectl create deployment NAME --image=registry.access.redhat.com/ubi9/nginx-124",
-          "  kubectl create deployment NAME --image=registry.access.redhat.com/ubi9/redis-7",
-          "  kubectl scale deployment NAME --replicas=COUNT (0-3)",
-          "  kubectl expose deployment NAME --port=PORT (internal ClusterIP only)",
-          "  kubectl delete deployment|service NAME",
-          "  clear",
-        ],
+    if (!parsed.success) {
+      await executionLogService.logExecution({
+        workspaceId: req.workspaceId,
+        userId: req.user.id,
+        surface: "playground",
+        command: "unsupported",
+        status: "rejected",
+        output: "Enter one supported command.",
       });
+      return res.status(400).json({ error: "Enter one supported command." });
+    }
+    const command = parsed.data.command;
+    if (command === "help") {
+      const lines = [
+        "Commands run against your real OpenShift project, not a local Docker daemon.",
+        "  kubectl get pods|deployments|services",
+        "  kubectl create deployment NAME --image=registry.access.redhat.com/ubi9/nginx-124",
+        "  kubectl create deployment NAME --image=registry.access.redhat.com/ubi9/redis-7",
+        "  kubectl scale deployment NAME --replicas=COUNT (0-3)",
+        "  kubectl expose deployment NAME --port=PORT (internal ClusterIP only)",
+        "  kubectl delete deployment|service NAME",
+        "  clear",
+      ];
+      await executionLogService.logExecution({
+        workspaceId: req.workspaceId,
+        userId: req.user.id,
+        surface: "playground",
+        command,
+        status: "succeeded",
+        output: lines.join("\\n"),
+      });
+      return res.json({ lines });
     }
     const token = process.env.OPENSHIFT_USER_TOKEN?.trim();
-    if (!token) return res.status(409).json({ error: "OpenShift access is not configured server-side." });
+    if (!token) {
+      const error = "OpenShift access is not configured server-side.";
+      await executionLogService.logExecution({
+        workspaceId: req.workspaceId,
+        userId: req.user.id,
+        surface: "playground",
+        command,
+        status: "unavailable",
+        output: error,
+      });
+      return res.status(409).json({ error });
+    }
     try {
-      const result = await runCommand(parsed.data.command, req.user, token);
+      const result = await runCommand(command, req.user, token);
+      await executionLogService.logExecution({
+        workspaceId: req.workspaceId,
+        userId: req.user.id,
+        surface: "playground",
+        command,
+        status: "succeeded",
+        output: (result.lines || []).join("\\n"),
+      });
       res.set("Cache-Control", "no-store");
       return res.json(result);
     } catch (error) {
       const status = error instanceof OpenShiftError ? error.status : 400;
-      return res.status(status).json({ error: error.message || "OpenShift command failed." });
+      const message = error.message || "OpenShift command failed.";
+      await executionLogService.logExecution({
+        workspaceId: req.workspaceId,
+        userId: req.user.id,
+        surface: "playground",
+        command,
+        status: "failed",
+        output: message,
+      });
+      return res.status(status).json({ error: message });
     }
   });
 

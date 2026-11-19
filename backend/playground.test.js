@@ -34,11 +34,15 @@ async function makeServer(context) {
   app.use(express.json());
   app.use((req, _res, next) => {
     req.user = { id: "user-123", role: "owner" };
+    req.workspaceId = "workspace-test";
     next();
   });
   app.use(
     "/api/playground",
-    createPlaygroundRouter((_req, _res, next) => next()),
+    createPlaygroundRouter((_req, _res, next) => next(), {
+      logExecution: async () => {},
+      listExecutionLogs: () => [],
+    }),
   );
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));

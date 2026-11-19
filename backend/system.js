@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import rateLimit from "express-rate-limit";
 import { Router } from "express";
 import { z } from "zod";
+import { listExecutionLogs, logExecution } from "./execution-logs.js";
 
 const packageMetadata = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const diagnosticCommands = ["status", "version", "kernel", "uptime", "whoami", "date"];
@@ -68,7 +69,7 @@ export function runCloudShellCommand(
   }
 }
 
-export function createSystemRouter(auth) {
+export function createSystemRouter(auth, executionLogService = { logExecution, listExecutionLogs }) {
   const router = Router();
   const limiter = rateLimit({
     windowMs: 60000,
@@ -82,17 +83,35 @@ export function createSystemRouter(auth) {
     res.set("Cache-Control", "no-store");
     res.json({ system: getSystemMetadata() });
   });
-  router.post("/shell", limiter, (req, res) => {
+  router.get("/execution-logs", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json({ logs: executionLogService.listExecutionLogs(req.workspaceId, "cloudshell") });
+  });
+  router.post("/shell", limiter, async (req, res) => {
     const parsed = shellCommand.safeParse(req.body);
     if (!parsed.success) {
+      await executionLogService.logExecution({
+        workspaceId: req.workspaceId,
+        userId: req.user.id,
+        surface: "cloudshell",
+        command: "unsupported",
+        status: "rejected",
+        output: "Command is not available in the read-only CloudShell.",
+      });
       return res.status(400).json({ error: "Command is not available in the read-only CloudShell." });
     }
 
-    res.set("Cache-Control", "no-store");
-    return res.json({
+    const output = runCloudShellCommand(parsed.data.command, req.user);
+    await executionLogService.logExecution({
+      workspaceId: req.workspaceId,
+      userId: req.user.id,
+      surface: "cloudshell",
       command: parsed.data.command,
-      output: runCloudShellCommand(parsed.data.command, req.user),
+      status: "succeeded",
+      output,
     });
+    res.set("Cache-Control", "no-store");
+    return res.json({ command: parsed.data.command, output });
   });
 
   return router;

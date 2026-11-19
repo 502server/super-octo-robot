@@ -1335,9 +1335,21 @@ async function renderAuditPage() {
 }
 async function loadAudit() {
   try {
-    const { events } = await api("/audit");
-    $("#audit-list").innerHTML = events.length
-      ? events
+    const [{ events }, { logs: cloudLogs }, { logs: playgroundLogs }] = await Promise.all([
+      api("/audit"),
+      api("/system/execution-logs"),
+      api("/playground/execution-logs"),
+    ]);
+    const executionEvents = [...cloudLogs, ...playgroundLogs].map((log) => ({
+      action: `${log.surface} · ${log.status}`,
+      detail: [log.command, log.output].filter(Boolean).join(" — "),
+      at: log.createdAt,
+    }));
+    const combinedEvents = [...events, ...executionEvents]
+      .sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0))
+      .slice(0, 200);
+    $("#audit-list").innerHTML = combinedEvents.length
+      ? combinedEvents
           .map(
             (event) =>
               `<article class="audit-row"><span class="audit-icon">${iconMarkup("ClipboardList", "audit-svg-icon", "accent")}</span><div><strong>${escapeHTML(event.action)}</strong><small>${escapeHTML(event.detail || "Workspace event")}</small></div><time>${formatDate(event.at)} · ${new Date(event.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></article>`,
