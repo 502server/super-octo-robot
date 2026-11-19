@@ -2,18 +2,19 @@
 
 ## Status
 
-`migrations/001_workspace_intelligence.sql` defines the first relational schema for workspace identity, membership, invitations, sessions, authorized assets, IOC records, alerts, asset checks and audit events.
+`migrations/001_workspace_intelligence.sql` defines the relational schema for workspace identity, membership, invitations, sessions, authorized assets, IOC records, alerts, findings, asset checks and audit events.
 
-**It has not been applied to Hasura.** The live Express application still reads and writes `data/state.json`. Do not assume that adding this SQL file switches the running app to PostgreSQL.
+The additive schema has been applied to the connected Neon database. Hasura is not connected or configured. The live Express application still uses `public.fivezero2_app_state` as its canonical store (a single JSONB state document); the new relational tables are not yet the application's read/write path. Applying this DDL did not migrate existing application data or switch traffic.
 
-## Apply safely
+## Remaining cutover steps
 
-1. Take a backup/snapshot of the Hasura project's PostgreSQL database.
-2. Confirm the target Hasura project and database are the intended environment.
-3. Review the SQL with a database administrator.
-4. Apply the migration once through the Hasura SQL console or a controlled migration pipeline.
-5. Track the applied migration version outside the application.
-6. In Hasura, track the tables and configure relationships and permissions before exposing them through GraphQL.
+1. Take and verify a Neon snapshot before importing or switching active data.
+2. Implement and test relational repositories against the current auth, workspace and feature behavior.
+3. Backfill the existing JSONB state with deterministic ID mapping; verify counts, references and workspace isolation.
+4. Switch application reads/writes only after staging and rollback tests pass.
+5. Keep the JSONB snapshot until the rollback window closes.
+
+Hasura is optional for the chosen Neon architecture. If added later, track tables and configure workspace-scoped permissions and relationships before exposing GraphQL; never expose its admin secret to the browser.
 
 ## Required Hasura permissions
 

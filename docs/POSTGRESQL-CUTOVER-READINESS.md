@@ -2,7 +2,7 @@
 
 ## Decision
 
-The Express application is still backed by `api/store.js` and `data/state.json`. The SQL schema is not applied, Hasura permissions are not configured, and there is no PostgreSQL repository adapter. Do not switch production traffic to PostgreSQL yet.
+The Express application connects to Neon when `DATABASE_URL` is present, but `api/store.js` stores the entire application state in one `public.fivezero2_app_state.payload` JSONB row. The relational schema in `migrations/001_workspace_intelligence.sql` is now applied to Neon, but its tables are not yet used by application routes and have not been backfilled. Hasura is not connected or configured; it is optional for the selected Neon architecture. Do not claim a relational cutover until repositories, data backfill, and isolation tests are complete.
 
 ## Runtime-to-relational mapping
 
