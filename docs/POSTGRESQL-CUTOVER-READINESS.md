@@ -4,7 +4,7 @@
 
 The Express application now uses Drizzle-backed relational tables for users, workspaces, memberships, invitations, sessions, assets, indicators, alerts, findings, checks, and audit events whenever `DATABASE_URL` is configured. The repository preserves the existing callback-based application behavior while loading a consistent request snapshot and serializing transactional writes with a PostgreSQL advisory lock. Hasura remains optional and is not used by the application.
 
-The guarded importer can read the legacy `fivezero2_app_state.payload` directly with `pnpm db:import --from-database`; it defaults to dry-run and retains the source JSONB row after import. The currently connected v0 Neon database returned zero legacy users, workspaces, and feature records in its dry-run. Production deployment uses the separate `DATABASE_URL` GitHub Actions secret for Fly, so the preview result is not evidence about the production database. Do not migrate or redirect production until that source is identified and dry-run counts are reviewed.
+The guarded importer can read the legacy `fivezero2_app_state.payload` directly with `pnpm db:import --from-database`; it defaults to dry-run and retains the source JSONB row after import. Database-sourced runs use the dedicated `FLY_DATABASE_URL` so they cannot silently fall back to the preview `DATABASE_URL`. The Fly hostname currently configured in this workspace did not resolve, so production row counts remain unverified. Do not migrate or redirect production until that source is identified and dry-run counts are reviewed.
 
 ## Runtime-to-relational mapping
 

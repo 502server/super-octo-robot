@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildImportPlan} from "../scripts/import-json-to-postgres.js";
+import {buildImportPlan,databaseUrlFor} from "../scripts/import-json-to-postgres.js";
+
+test("database-sourced imports require Fly URL, not the preview URL",()=>{
+ assert.equal(databaseUrlFor({fromDatabase:true,env:{FLY_DATABASE_URL:"fly-url",DATABASE_URL:"preview-url"}}),"fly-url");
+ assert.equal(databaseUrlFor({fromDatabase:true,env:{DATABASE_URL:"preview-url"}}),undefined);
+ assert.equal(databaseUrlFor({fromDatabase:false,env:{FLY_DATABASE_URL:"fly-url",DATABASE_URL:"preview-url"}}),"preview-url");
+});
 
 const state=()=>({
  workspaces:[{id:"ws_default",name:"Default",slug:"default",createdBy:"u1"}],

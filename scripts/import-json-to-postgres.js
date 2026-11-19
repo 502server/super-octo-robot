@@ -14,6 +14,10 @@ const verificationChallenge=id=>crypto.createHmac("sha256",process.env.SESSION_S
 const safeText=(v,max=4000)=>String(v??"").slice(0,max);
 const importTime=new Date().toISOString();
 
+export function databaseUrlFor({fromDatabase,env=process.env}) {
+ return fromDatabase?env.FLY_DATABASE_URL:env.DATABASE_URL;
+}
+
 export function buildImportPlan(state,sourceHash) {
  const check=inspectState(state);
  if(!check.ok) return {ok:false,issues:check.issues,counts:check.counts};
@@ -53,12 +57,13 @@ async function insertRows(client,table,rows) {
 }
 async function main(){
  const args=process.argv.slice(2),apply=args.includes("--apply"),backup=args.includes("--backup-confirmed"),fromDatabase=args.includes("--from-database");
+ const databaseUrl=databaseUrlFor({fromDatabase});
  if(apply&&!backup){console.error("Refusing apply without --backup-confirmed.");process.exitCode=2;return}
- if((apply||fromDatabase)&&!process.env.DATABASE_URL){console.error("DATABASE_URL is required for this operation.");process.exitCode=2;return}
+ if((apply||fromDatabase)&&!databaseUrl){console.error(fromDatabase?"FLY_DATABASE_URL is required for database-sourced imports.":"DATABASE_URL is required for file-sourced imports.");process.exitCode=2;return}
  const {Pool}=await import("pg");
  let pool=null,state,raw,file=null;
  if(fromDatabase){
-  pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.PGSSLMODE==="require"?{rejectUnauthorized:process.env.PGSSL_REJECT_UNAUTHORIZED!=="false"}:undefined,max:1});
+  pool=new Pool({connectionString:databaseUrl,ssl:process.env.PGSSLMODE==="require"?{rejectUnauthorized:process.env.PGSSL_REJECT_UNAUTHORIZED!=="false"}:undefined,max:1});
   const source=await pool.query("SELECT payload FROM fivezero2_app_state WHERE singleton=true");
   if(!source.rowCount)throw Error("Legacy JSONB source row was not found.");
   state=source.rows[0].payload;
@@ -72,7 +77,7 @@ async function main(){
  if(!plan.ok){console.log(JSON.stringify({ok:false,counts:plan.counts,issues:plan.issues},null,2));process.exitCode=1;await pool?.end();return}
  console.log(JSON.stringify({mode:apply?"apply":"dry-run",source:fromDatabase?"fivezero2_app_state":file,counts:plan.counts,sourceHash,sessionPolicy:plan.sessionPolicy,securityPolicy:plan.securityPolicy},null,2));
  if(!apply){console.log("Dry-run only. No database writes were performed.");await pool?.end();return}
- if(!pool)pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.PGSSLMODE==="require"?{rejectUnauthorized:process.env.PGSSL_REJECT_UNAUTHORIZED!=="false"}:undefined,max:1});
+ if(!pool)pool=new Pool({connectionString:databaseUrl,ssl:process.env.PGSSLMODE==="require"?{rejectUnauthorized:process.env.PGSSL_REJECT_UNAUTHORIZED!=="false"}:undefined,max:1});
  const client=await pool.connect();
  try{
   await client.query("BEGIN");
