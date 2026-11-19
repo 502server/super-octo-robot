@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import { createPool } from "mysql2/promise";
 
+const skySqlCa = readFileSync(new URL("./skysql-ca.pem", import.meta.url), "utf8").trim();
 let pool;
 
 export function mariaDbOptionsFromUrl(value = process.env.MARIADB_URL, env = process.env) {
@@ -21,7 +23,10 @@ export function mariaDbOptionsFromUrl(value = process.env.MARIADB_URL, env = pro
     throw new Error("MARIADB_URL must include a host, username, and database name");
   }
 
-  const ca = env.MARIADB_SSL_CA?.replaceAll("\\n", "\n").trim();
+  const configuredCa = env.MARIADB_SSL_CA?.replaceAll("\\n", "\n").trim();
+  const ca =
+    configuredCa ||
+    (url.hostname.toLowerCase().endsWith(".skysql.com") ? skySqlCa : undefined);
   return {
     host: url.hostname,
     port: Number(url.port || 3306),

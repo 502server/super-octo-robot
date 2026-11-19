@@ -25,7 +25,7 @@ Open http://localhost:3000. Set unique long values for BOOTSTRAP_TOKEN and SESSI
 
 ## MariaDB runtime
 
-- Configure `MARIADB_URL` with a `mysql://` or `mariadb://` URL that includes the database name. The driver always verifies TLS certificates; use `MARIADB_SSL_CA` only if the provider's CA is not in the system trust store. Never commit these values or expose them to browser code.
+- Configure `MARIADB_URL` with a `mysql://` or `mariadb://` URL that includes the database name. The driver always verifies TLS certificates. SkySQL hosts (`*.skysql.com`) use the bundled SkySQL CA chain; `MARIADB_SSL_CA` can override it when the provider supplies a different CA. Never expose connection credentials to browser code.
 - Initialize a fresh MariaDB target with `pnpm db:migrate:mariadb` and `pnpm db:auth:migrate` before first use.
 - The Express app stores feature state in MariaDB using InnoDB transactions and row locks. Better Auth uses the same MariaDB pool for its authentication tables.
 
@@ -59,7 +59,7 @@ The application exports its Express handler from the repository root for Vercel,
 Configure these server-only variables in the Vercel project for Preview and Production:
 
 - `MARIADB_URL`: rotated MariaDB connection URL including the database name.
-- `MARIADB_SSL_CA`: optional provider CA PEM, only if required to validate the server certificate.
+- `MARIADB_SSL_CA`: optional provider CA PEM override; SkySQL hosts use the bundled CA chain by default.
 - `SESSION_SECRET`, `BETTER_AUTH_SECRET`, and `BOOTSTRAP_TOKEN`: unique, strong secrets.
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET` when those OAuth providers are enabled.
 Before enabling Production, initialize the MariaDB schema and verify authentication and feature reads/writes in Preview.

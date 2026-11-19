@@ -22,6 +22,18 @@ test("requires an explicit database name and valid MySQL protocol", () => {
   assert.throws(() => mariaDbOptionsFromUrl("unsupported://user:pass@db.example.com/app"), /mysql:\/\//);
 });
 
+test("uses the bundled SkySQL CA chain only for SkySQL hosts", () => {
+  const skySqlOptions = mariaDbOptionsFromUrl(
+    "mariadb://app-user:pass@serverless-eu-north-1.sysp0000.db1.skysql.com:4018/fivezero2",
+    {},
+  );
+  const otherOptions = mariaDbOptionsFromUrl("mariadb://app-user:pass@db.example.com/fivezero2", {});
+
+  assert.equal(skySqlOptions.ssl.rejectUnauthorized, true);
+  assert.equal((skySqlOptions.ssl.ca.match(/-----BEGIN CERTIFICATE-----/g) || []).length, 2);
+  assert.equal(otherOptions.ssl.ca, undefined);
+});
+
 test("adds an optional provider CA without disabling certificate checks", () => {
   const options = mariaDbOptionsFromUrl("mysql://app-user:pass@db.example.com/app", {
     MARIADB_SSL_CA: "-----BEGIN CERTIFICATE-----\\nexample\\n-----END CERTIFICATE-----",
