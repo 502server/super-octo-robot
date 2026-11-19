@@ -1,3 +1,5 @@
+import { renderOpenShiftPlayground } from "./playground-live.js";
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const auth = $("#auth");
@@ -67,6 +69,7 @@ const navGroups = [
       ["reports", "Reports", "FileChartColumn"],
       ["tasks", "Task queue", "ListTodo"],
       ["cloudshell", "CloudShell", "Terminal"],
+      ["playground", "Container playground", "Boxes"],
     ],
   },
   {
@@ -169,7 +172,16 @@ const pageInfo = {
     "Export connections",
   ],
   settings: ["Settings", "Manage workspace preferences and organization policy.", "Workspace settings"],
-  system: ["System & legal", "Review live application diagnostics and workspace governance documents.", "System and legal information"],
+  system: [
+    "System & legal",
+    "Review live application diagnostics and workspace governance documents.",
+    "System and legal information",
+  ],
+  playground: [
+    "Container playground",
+    "Deploy and manage real containers, Kubernetes workloads, and internal services in OpenShift.",
+    "Live OpenShift playground",
+  ],
 };
 
 function escapeHTML(value) {
@@ -265,6 +277,7 @@ function navigate(page) {
   else if (page === "audit") renderAuditPage();
   else if (page === "settings") renderSettingsPage();
   else if (page === "cloudshell") renderCloudShell();
+  else if (page === "playground") renderOpenShiftPlayground(viewRoot);
   else if (page === "system") renderSystemPage();
   else if (page === "exports") renderExportsPage();
   else renderModulePage(page);

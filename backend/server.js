@@ -23,6 +23,7 @@ import { createAssistantRouter } from "./assistant.js";
 import { createIntegrationRouter } from "./integrations.js";
 import { createIntelligenceRouter } from "./intelligence.js";
 import { createSystemRouter } from "./system.js";
+import { createPlaygroundRouter } from "./playground.js";
 import { roleGuard, canAssignRole, sameWorkspace } from "./access.js";
 const app = express(),
   port = Number(process.env.PORT || 3000),
@@ -235,6 +236,7 @@ app.use("/api/assistant", createAssistantRouter(auth));
 app.use("/api/integrations", createIntegrationRouter(auth));
 app.use("/api/intel", createIntelligenceRouter(auth));
 app.use("/api/system", createSystemRouter(auth));
+app.use("/api/playground", createPlaygroundRouter(auth));
 app.post("/api/oauth/complete", async (req, res) => {
   const identity = await oauthIdentityFromRequest(req);
   if (!identity) return res.status(401).json({ error: "OAuth session was not found. Sign in again." });
