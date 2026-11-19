@@ -16,6 +16,7 @@ const empty = {
   audit: [],
   iocs: [],
   alerts: [],
+  moduleRecords: [],
 };
 let state = structuredClone(empty);
 let chain = Promise.resolve();

@@ -893,11 +893,18 @@ async function runWorkspaceHunt(query) {
     : "Recent workspace evidence";
   root.innerHTML = '<div class="loading-state">Searching workspace records…</div>';
   try {
-    const [{ iocs }, { alerts }, { assets }, { findings }] = await Promise.all([
+    const [{ iocs }, { alerts }, { assets }, { findings }, ...moduleResponses] = await Promise.all([
       api("/intel/iocs"),
       api("/intel/alerts"),
       api("/assets"),
       api("/findings"),
+      ...Object.keys(pageInfo)
+        .filter((page) => !["threat-overview", "hunt-center", "vulnerabilities", "settings"].includes(page))
+        .map((page) =>
+          api(`/intel/modules/${encodeURIComponent(page)}`).then(({ records }) =>
+            records.map((record) => ({ ...record, page })),
+          ),
+        ),
     ]);
     const records = [
       ...iocs.map((item) => ({
@@ -931,6 +938,22 @@ async function runWorkspaceHunt(query) {
         at: item.createdAt,
         page: "vulnerabilities",
         search: [item.title, item.name, item.description, item.severity, item.status].join(" "),
+      })),
+      ...moduleResponses.flat().map((item) => ({
+        kind: pageInfo[item.page]?.[0] || "Workspace record",
+        title: item.title,
+        detail: `${item.severity} · ${item.status.replaceAll("_", " ")} · ${item.summary || item.source}`,
+        at: item.updatedAt || item.createdAt,
+        page: item.page,
+        search: [
+          item.title,
+          item.summary,
+          item.source,
+          item.reference,
+          item.severity,
+          item.status,
+          ...(item.tags || []),
+        ].join(" "),
       })),
     ]
       .filter((item) => !term || item.search.toLowerCase().includes(term))
@@ -1010,10 +1033,81 @@ function renderModulePage(page) {
   ];
   const moduleIcon =
     navGroups.flatMap((group) => group.items).find((item) => item[0] === page)?.[2] || "CircleHelp";
-  viewRoot.innerHTML = `${pageHeading("THREAT INTELLIGENCE / WORKSPACE", title, description)}
-    <section class="module-hero surface-card"><div class="module-symbol">${iconMarkup(moduleIcon, "module-svg-icon", "accent")}</div><div><p class="section-kicker">READY FOR YOUR WORKSPACE</p><h2>Connect a source to activate this view</h2><p>This workspace currently exposes organization assets, findings, indicators, alerts, team access, and integration health. ${escapeHTML(title)} data is not available from a connected source yet, so no sample intelligence is shown as live information.</p><button class="primary-button" data-go-integrations>Review connections <span>→</span></button></div></section>
-    <section class="module-info-grid"><article class="surface-card"><span class="module-info-icon">${iconMarkup("PlugZap", "module-info-svg", "accent")}</span><h3>${escapeHTML(connection)}</h3><p>Choose and configure a trusted source before this module reports operational data.</p></article><article class="surface-card"><span class="module-info-icon">${iconMarkup("ShieldCheck", "module-info-svg", "accent")}</span><h3>Workspace scoped</h3><p>Connected information will remain isolated to this organization and its member roles.</p></article><article class="surface-card"><span class="module-info-icon">${iconMarkup("Activity", "module-info-svg", "accent")}</span><h3>Ready for analyst workflows</h3><p>When a source is connected, findings can be reviewed alongside alerts and assets.</p></article></section>`;
-  $("[data-go-integrations]").addEventListener("click", () => navigate("integrations"));
+  viewRoot.innerHTML = `${pageHeading("THREAT INTELLIGENCE / WORKSPACE", title, description, '<button class="secondary-button" id="refresh-module">↻ <span>Refresh</span></button>')}
+    <section class="module-summary-grid" id="module-summary" aria-label="Module summary"></section>
+    <section class="surface-card form-card module-record-form-card"><div class="card-heading"><div><p class="section-kicker">WORKSPACE RECORDS</p><h2>Add to ${escapeHTML(title)}</h2></div><span class="subtle-tag">Analyst-managed</span></div><form id="module-record-form" class="module-record-form"><label class="module-title-field">Title<input name="title" required minlength="3" maxlength="180" placeholder="Add a concise, evidence-based title" /></label><label>Severity<select name="severity"><option>low</option><option selected>medium</option><option>high</option><option>critical</option></select></label><label>Status<select name="status"><option value="open">Open</option><option value="investigating">Investigating</option><option value="monitoring">Monitoring</option></select></label><label>Source<input name="source" maxlength="120" value="analyst" /></label><label>Reference<input name="reference" maxlength="500" placeholder="Ticket, URL, or evidence reference" /></label><label class="module-summary-field">Analyst notes<textarea name="summary" rows="3" maxlength="2000" placeholder="Context, evidence, and next steps"></textarea></label><button class="primary-button">Save record <span>→</span></button></form><p class="form-message" id="module-record-message" role="status" aria-live="polite">${escapeHTML(connection)} data is recorded only when entered or imported by your team.</p></section>
+    <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">${escapeHTML(title.toUpperCase())}</p><h2>Records &amp; triage</h2></div><label class="table-search"><span aria-hidden="true">⌕</span><input id="module-filter" type="search" maxlength="200" placeholder="Filter records" aria-label="Filter records" /></label></div><div id="module-record-list" class="module-record-list" aria-live="polite"></div></section>
+    <p class="module-provenance">${iconMarkup(moduleIcon, "module-info-svg", "accent")} Workspace scoped · updates are recorded in the audit log · no external source is queried by this view.</p>`;
+  const form = $("#module-record-form");
+  form.addEventListener("submit", (event) => createModuleRecord(event, page));
+  setReadOnly(form);
+  $("#refresh-module").addEventListener("click", () => loadModuleRecords(page));
+  $("#module-filter").addEventListener("input", () => loadModuleRecords(page, $("#module-filter").value));
+  loadModuleRecords(page);
+}
+
+async function loadModuleRecords(page, query = "") {
+  const root = $("#module-record-list");
+  if (!root) return;
+  try {
+    const { records } = await api(
+      `/intel/modules/${encodeURIComponent(page)}${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+    );
+    const open = records.filter((record) => !["resolved", "closed"].includes(record.status)).length;
+    const critical = records.filter(
+      (record) => record.severity === "critical" && !["resolved", "closed"].includes(record.status),
+    ).length;
+    $("#module-summary").innerHTML = [
+      metricCard("TOTAL RECORDS", records.length, "Workspace-scoped", "blue", "Files"),
+      metricCard("OPEN", open, "Awaiting disposition", "amber", "Activity"),
+      metricCard("CRITICAL", critical, "Open critical records", critical ? "red" : "cyan", "ShieldAlert"),
+    ].join("");
+    root.innerHTML = records.length
+      ? records
+          .map(
+            (record) =>
+              `<article class="module-record-row"><span class="severity-mark ${escapeHTML(record.severity)}"></span><div class="module-record-copy"><strong>${escapeHTML(record.title)}</strong><small>${escapeHTML(record.summary || "No analyst notes")} ${record.reference ? `· ${escapeHTML(record.reference)}` : ""}</small><span class="module-record-meta">${escapeHTML(record.source)} · Added ${formatTime(record.createdAt)}</span></div><span class="severity-pill ${escapeHTML(record.severity)}">${escapeHTML(record.severity)}</span><label class="module-status-control"><span class="sr-only">Update status for ${escapeHTML(record.title)}</span><select data-module-record-id="${escapeHTML(record.id)}" ${canWriteWorkspace() ? "" : "disabled"}>${["open", "investigating", "monitoring", "resolved", "closed"].map((status) => `<option value="${status}" ${record.status === status ? "selected" : ""}>${status.replaceAll("_", " ")}</option>`).join("")}</select></label></article>`,
+          )
+          .join("")
+      : emptyState(
+          "No records yet",
+          query ? "Try another search term." : "Add the first analyst-managed record above.",
+        );
+    $$("[data-module-record-id]", root).forEach((select) =>
+      select.addEventListener("change", async () => {
+        select.disabled = true;
+        try {
+          await api(
+            `/intel/modules/${encodeURIComponent(page)}/${encodeURIComponent(select.dataset.moduleRecordId)}`,
+            { method: "PATCH", body: JSON.stringify({ status: select.value }) },
+          );
+          await loadModuleRecords(page, $("#module-filter").value);
+        } catch (error) {
+          $("#module-record-message").textContent = error.message;
+          select.disabled = !canWriteWorkspace();
+        }
+      }),
+    );
+  } catch (error) {
+    root.innerHTML = `<div class="inline-error" role="alert">${escapeHTML(error.message)}</div>`;
+  }
+}
+
+async function createModuleRecord(event, page) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  try {
+    await api(`/intel/modules/${encodeURIComponent(page)}`, {
+      method: "POST",
+      body: JSON.stringify(Object.fromEntries(new FormData(form))),
+    });
+    form.reset();
+    form.elements.source.value = "analyst";
+    $("#module-record-message").textContent = "Record saved to this workspace and added to the audit log.";
+    await loadModuleRecords(page, $("#module-filter").value);
+  } catch (error) {
+    $("#module-record-message").textContent = error.message;
+  }
 }
 
 function renderSettingsPage() {
