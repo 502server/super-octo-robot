@@ -178,7 +178,7 @@ function escapeHTML(value) {
 
 function iconMarkup(name, className = "", tone = "muted") {
   const safeTone = ["muted", "accent", "critical", "white", "blue", "amber"].includes(tone) ? tone : "muted";
-  return `<img class="${escapeHTML(className)}" src="/icons/${encodeURIComponent(name)}.svg?tone=${safeTone}" alt="" aria-hidden="true" />`;
+  return `<img class="${escapeHTML(className)}" src="/icons/${encodeURIComponent(name)}.svg?tone=${safeTone}&v=2" alt="" aria-hidden="true" />`;
 }
 
 async function api(path, options = {}) {
