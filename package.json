@@ -6,12 +6,21 @@
   "engines": {
     "node": ">=20"
   },
+  "packageManager": "pnpm@10.34.3",
   "scripts": {
     "start": "node api/server.js",
     "dev": "node --watch api/server.js",
     "test": "node --test",
+    "lint": "eslint eslint.config.js api scripts test web/app.js",
+    "format": "prettier --write package.json eslint.config.js .github/workflows/ci.yml .github/workflows/fly-deploy.yml web/app.js web/index.html web/style.css",
+    "format:check": "prettier --check package.json eslint.config.js .github/workflows/ci.yml .github/workflows/fly-deploy.yml web/app.js web/index.html web/style.css",
     "db:preflight": "node scripts/preflight-json-import.js",
     "db:import": "node scripts/import-json-to-postgres.js"
+  },
+  "prettier": {
+    "printWidth": 110,
+    "singleQuote": false,
+    "trailingComma": "all"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -22,5 +31,11 @@
     "lucide-static": "^1.75.0",
     "pg": "^8.13.1",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1"
   }
 }

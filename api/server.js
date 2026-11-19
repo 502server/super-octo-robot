@@ -100,5 +100,5 @@ app.get("/api/findings",auth,(req,res)=>res.json({findings:read(s=>s.findings.fi
 app.patch("/api/findings/:id",auth,roleGuard("owner","admin","analyst"),async(req,res)=>{const p=z.enum(["open","accepted","fixed","false_positive"]).safeParse(req.body.status);if(!p.success)return res.status(400).json({error:"Invalid status"});const f=await write(s=>{const x=s.findings.find(y=>y.id===req.params.id&&sameWorkspace(y,req.workspaceId));if(x)x.status=p.data;return x});if(!f)return res.status(404).json({error:"Finding not found"});await audit(req.user.id,"finding.update",req.params.id,req.workspaceId);res.json({finding:f})});
 app.get("/api/audit",auth,(req,res)=>res.json({events:read(s=>s.audit.filter(x=>sameWorkspace(x,req.workspaceId)).slice(0,200))}));
 app.use(express.static("web"));
-app.use((err,req,res,next)=>{console.error(err);res.status(500).json({error:"Internal server error"})});
+app.use((err,req,res,_next)=>{console.error(err);res.status(500).json({error:"Internal server error"})});
 await loadStore();app.listen(port,process.env.HOST||"0.0.0.0",()=>console.log("fivezero2.group listening on "+port));

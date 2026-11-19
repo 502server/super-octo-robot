@@ -1,8 +1,8 @@
 FROM node:20-alpine
 WORKDIR /app
 RUN apk add --no-cache su-exec
-COPY package*.json ./
-RUN npm install --omit=dev
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --prod --frozen-lockfile
 COPY api ./api
 COPY web ./web
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
@@ -11,4 +11,4 @@ ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
 EXPOSE 3000
 USER root
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["npm","start"]
+CMD ["pnpm","start"]

@@ -54,7 +54,6 @@ export function inspectState(input) {
   const userIds = new Set(rows("users").map(x=>String(x.id)));
   const assetIds = new Set(rows("assets").map(x=>String(x.id)));
   const iocIds = new Set(rows("iocs").map(x=>String(x.id)));
-  const membership = new Set((input.users||[]).map(x=>String(x.workspaceId||"")));
   const checkRef = (collection, rows, predicate, code) => {
     for (const row of rows||[]) if (!predicate(row)) issues.push({collection,code,rowId:String(row.id||"unknown")});
   };
