@@ -21,28 +21,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.3
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: pnpm install --frozen-lockfile
 
-      - name: Check JavaScript syntax
-        run: |
-          node --check api/server.js
-          node --check api/store.js
-          node --check api/access.js
-          node --check api/security.js
-          node --check api/integrations.js
-          node --check api/intelligence.js
-          node --check scripts/preflight-json-import.js
-          node --check scripts/import-json-to-postgres.js
-          node --check web/app.js
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint frontend and backend
+        run: pnpm lint
+
+      - name: Check TypeScript
+        run: pnpm typecheck
+
+      - name: Build frontend
+        run: pnpm build
 
       - name: Run tests
-        run: npm test
+        run: pnpm test
 
       - name: Build production container
         run: docker build --tag fivezero2-group:ci .

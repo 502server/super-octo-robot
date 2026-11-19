@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {hasMinimumRole,roleGuard,canAssignRole,sameWorkspace} from "../api/access.js";
+import {hasMinimumRole,roleGuard,canAssignRole,sameWorkspace} from "../backend/access.js";
 
 test("role hierarchy is least-privilege ordered",()=>{
  const viewer={role:"viewer"},analyst={role:"analyst"},admin={role:"admin"},owner={role:"owner"};

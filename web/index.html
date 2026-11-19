@@ -3,73 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f5f5f5" />
-    <meta name="description" content="Fivezero2 security intelligence workspace for threat monitoring, exposure management, and incident operations." />
+    <meta name="theme-color" content="#080a0d" />
+    <meta
+      name="description"
+      content="Fivezero2 security intelligence workspace for threat monitoring, exposure management, and incident operations."
+    />
     <title>Fivezero2 · Threat intelligence</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/style.css" />
-    <script src="/app.js" defer></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <section id="auth" class="auth-screen" aria-labelledby="auth-title">
-      <div class="auth-brand"><span class="brand-mark">5</span><span>fivezero2<span class="brand-dot">.group</span></span></div>
-      <div class="auth-card">
-        <div class="auth-kicker"><span class="pulse-dot"></span> FIVEZERO2 SECURITY CONSOLE</div>
-        <h1 id="auth-title">Sign in to your account</h1>
-        <p class="auth-copy">Access your threat intelligence workspace.</p>
-        <div class="auth-tabs" id="auth-tabs" role="tablist" aria-label="Workspace access">
-          <button type="button" class="auth-tab active" data-tab="login" role="tab" aria-selected="true">Sign in</button>
-          <button type="button" class="auth-tab" data-tab="bootstrap" role="tab" aria-selected="false">Enterprise Access</button>
-        </div>
-        <div class="social-login" id="social-login">
-          <button class="provider-button" type="button" data-provider="Google"><span class="google-mark" aria-hidden="true">G</span>Continue with Google</button>
-          <button class="provider-button" type="button" data-provider="GitHub"><svg class="github-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.56.1.76-.24.76-.54v-2.08c-3.1.68-3.76-1.31-3.76-1.31-.5-1.29-1.24-1.63-1.24-1.63-1.02-.7.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15 1 .1.76 2.02 3.37 1.54.1-.73.4-1.22.72-1.5-2.47-.28-5.07-1.24-5.07-5.5 0-1.22.44-2.22 1.15-3-.12-.28-.5-1.42.11-2.96 0 0 .94-.3 3.05 1.15a10.6 10.6 0 0 1 5.55 0c2.12-1.45 3.05-1.15 3.05-1.15.61 1.54.23 2.68.12 2.96.72.78 1.15 1.78 1.15 3 0 4.27-2.6 5.21-5.08 5.49.4.35.76 1.02.76 2.06v3.06c0 .3.2.64.77.53A11.1 11.1 0 0 0 12 .9Z"/></svg>Continue with GitHub</button>
-          <p class="provider-note" id="provider-note">Google and GitHub sign-in require configured OAuth credentials.</p>
-        </div>
-        <div class="auth-divider" id="auth-divider"><span>or sign in with your account</span></div>
-        <form id="login-form" class="auth-form">
-          <label for="login-username">Username</label><input id="login-username" name="username" autocomplete="username" required />
-          <label for="login-password">Password</label><input id="login-password" name="password" type="password" autocomplete="current-password" required />
-          <button class="primary-button auth-submit">Sign in <span aria-hidden="true">→</span></button>
-        </form>
-        <form id="bootstrap-form" class="auth-form hidden">
-          <label for="bootstrap-token">Bootstrap token</label><input id="bootstrap-token" name="bootstrapToken" type="password" autocomplete="one-time-code" required /><small class="field-hint bootstrap-hint">Set BOOTSTRAP_TOKEN in the project environment before initializing the first owner account.</small>
-          <label for="owner-username">Owner username</label><input id="owner-username" name="username" minlength="3" required />
-          <label for="owner-password">Password <span class="field-hint">12 characters minimum</span></label><input id="owner-password" name="password" type="password" minlength="12" required />
-          <button class="primary-button auth-submit">Initialize workspace <span aria-hidden="true">→</span></button>
-        </form>
-        <form id="oauth-invitation-form" class="auth-form hidden">
-          <p class="field-hint">Your Google or GitHub identity is verified. Enter the one-time invitation token from your workspace administrator.</p>
-          <label for="oauth-invitation-token">Invitation token</label><input id="oauth-invitation-token" name="invitationToken" type="password" autocomplete="one-time-code" required />
-          <button class="primary-button auth-submit">Accept invitation <span aria-hidden="true">→</span></button>
-        </form>
-        <form id="oauth-bootstrap-form" class="auth-form hidden">
-          <p class="field-hint">No workspace owner exists yet. Sign in with your verified Google or GitHub account, then enter the server bootstrap token.</p>
-          <label for="oauth-bootstrap-token">Bootstrap token</label><input id="oauth-bootstrap-token" name="bootstrapToken" type="password" autocomplete="one-time-code" required />
-          <button class="primary-button auth-submit">Initialize workspace <span aria-hidden="true">→</span></button>
-        </form>
-        <p id="auth-message" class="form-message" role="status" aria-live="polite"></p>
-        <div class="auth-foot"><span><span class="lock-icon" aria-hidden="true">▣</span> Session protected · Workspace isolated</span><span class="powered-by">Powered by Red Hat &amp; Linux</span></div>
-      </div>
-      <div class="auth-caption">THREAT INTELLIGENCE · EXPOSURE · RESPONSE</div>
-    </section>
-
-    <div id="dashboard" class="app-shell hidden">
-      <button type="button" class="nav-scrim" id="nav-scrim" aria-label="Close navigation menu" hidden></button>
-      <aside id="sidebar" class="sidebar" aria-label="Primary navigation">
-        <a class="brand" href="#dashboard" aria-label="Fivezero2 home"><span class="brand-mark">5</span><span>fivezero2<span class="brand-dot">.group</span></span></a>
-        <button type="button" class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Open navigation menu" aria-controls="sidebar" aria-expanded="false"><span class="menu-glyph" aria-hidden="true"></span></button>
-        <div class="workspace-switcher"><span class="workspace-avatar">F</span><span class="workspace-label"><strong id="workspace-name">Fivezero2 SOC</strong><small>Threat workspace</small></span><span class="chevron">⌄</span></div>
-        <nav id="sidebar-nav" class="sidebar-nav"></nav>
-        <div class="sidebar-bottom"><div class="feed-status"><span class="status-orb"></span><span><strong>Workspace online</strong><small id="feed-health">Feeds awaiting configuration</small></span></div><button id="logout" class="profile-button"><span class="profile-avatar" id="profile-avatar">A</span><span class="profile-copy"><strong id="profile-name">Analyst</strong><small id="profile-role">Analyst</small></span><span class="chevron">⋯</span></button></div>
-      </aside>
-
-      <main class="main-area">
-        <header class="topbar"><div class="breadcrumbs"><span>Workspace</span><span class="crumb-separator">/</span><strong id="breadcrumb-current">Dashboard</strong></div><div class="topbar-actions"><label class="global-search"><img class="header-svg-icon" src="/icons/Search.svg?tone=muted" alt="" aria-hidden="true" /><input id="global-search" type="search" placeholder="Search IOC, domain, alert…" aria-label="Search indicators and alerts" /><kbd>⌘ K</kbd></label><button class="icon-button" id="refresh" aria-label="Refresh workspace data" title="Refresh data"><img class="header-svg-icon" src="/icons/RefreshCw.svg?tone=muted" alt="" aria-hidden="true" /></button><button class="top-avatar" id="top-avatar" aria-label="Current user">A</button></div></header>
-        <div id="view-root" class="view-root" tabindex="-1"></div>
-      </main>
-    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

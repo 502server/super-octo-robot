@@ -18,7 +18,7 @@ This document turns the requested capability blueprint into an implementable pro
 - Workspace-scoped API reads and writes for assets, findings, IOC records, alerts, summaries and audit events.
 - RBAC roles: owner, admin, analyst and viewer. Viewers are read-only; analysts can operate assets/IOCs/alerts; admin/owner manage invitations and member roles; only owner can grant admin.
 - One-time workspace invitation tokens are random, stored hashed, expire after 24 hours, are single-use, rate-limited and capped at 25 pending invitations per workspace.
-- Workspace dashboard for viewing members, creating invitations and changing eligible member roles.\n- Initial PostgreSQL schema drafted in `migrations/001_workspace_intelligence.sql`; it has not been applied and the application is not yet connected to PostgreSQL.
+- Workspace dashboard for viewing members, creating invitations and changing eligible member roles.
 - Integration connection tests are restricted to owner/admin.
 - Node/Express API, static dashboard, owner bootstrap/login, signed HttpOnly session cookie, bcrypt password hashes, rate limits, security headers, request validation and audit events.
 - Asset inventory, DNS TXT ownership verification, passive HTTP GET check, finding status updates.
@@ -36,7 +36,7 @@ This document turns the requested capability blueprint into an implementable pro
 - Real external threat feeds, commercial feed licensing, dark-web monitoring, credential leak acquisition/validation, passive DNS, certificate transparency ingestion, historical WHOIS, malware detonation, YARA execution, Sigma evaluation, SIEM telemetry ingestion, STIX/TAXII, SSO, multi-workspace membership/switching, email invitation delivery, verified work-email checks, notification delivery, scheduled reports, and SOAR actions.
 - IOC confidence is analyst-supplied metadata, not a computed reputation score.
 - MITRE technique IDs are validated syntactically; no ATT&CK catalog mapping or coverage engine yet.
-- Current JSON file persistence is single-instance and not suitable for multi-tenant production or concurrent horizontal scaling.
+- Hosted persistence uses MariaDB transactions and row locks; local JSON persistence remains development-only.
 - All authenticated API routes currently use the initial owner/session model; role-based authorization and workspace isolation are still required.
 
 ## Architecture target
@@ -52,14 +52,14 @@ Browser dashboard
        -> Hunt / detection service
        -> Integration and webhook service
        -> Audit and reporting service
-  -> PostgreSQL (authoritative relational data)
+  -> MariaDB on SkySQL (authoritative application data)
   -> Object storage (reports, evidence, feed snapshots)
   -> Queue + workers (feed ingest, enrichment, scheduled jobs)
   -> Connectors (OSINT, customer SIEM, CTI feeds, ticketing)
 ```
 
 Suggested production stack:
-- PostgreSQL with tenant_id on every tenant-owned row and row-level security as defense in depth.
+- MariaDB on SkySQL with workspace-scoped queries, tenant ownership checks, and transactional writes.
 - Redis or a durable queue for ingestion and scheduled jobs.
 - Object storage for immutable evidence, exports and report artifacts.
 - OpenTelemetry-compatible logs/metrics/traces with secrets and sensitive IOC values redacted where appropriate.
@@ -86,7 +86,7 @@ Every tenant-owned record must include `workspace_id`; enforce it in every query
 3. **Dashboard**: asset/IOC/alert counts, severity distribution, recent activity, stale watchlists, trend panels.
 4. **Identity and workspace**: owner/admin/analyst/viewer roles, invitation and verified work email, workspace isolation tests, session revocation and access review.
 5. **API foundation**: versioned API, scoped API keys, rate limits, webhook signing, idempotency, audit trail.
-6. **Data foundation**: PostgreSQL migrations, backup/restore test, retention and export/delete workflows.
+6. **Data foundation**: MariaDB migrations, backup/restore test, retention and export/delete workflows.
 
 Acceptance criteria:
 - Cross-workspace reads/writes are denied by tests.

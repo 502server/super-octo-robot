@@ -6,12 +6,24 @@
   "engines": {
     "node": ">=20"
   },
+  "packageManager": "pnpm@10.34.3",
   "scripts": {
-    "start": "node api/server.js",
-    "dev": "node --watch api/server.js",
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js",
+    "dev:web": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "test": "node --test",
-    "db:preflight": "node scripts/preflight-json-import.js",
-    "db:import": "node scripts/import-json-to-postgres.js"
+    "lint": "eslint index.js eslint.config.js vite.config.ts backend scripts test web/app.js web/src",
+    "format": "prettier --write package.json tsconfig.json vercel.json index.js eslint.config.js vite.config.ts .github/workflows/ci.yml web/app.js web/index.html web/style.css web/src/**/*.tsx",
+    "format:check": "prettier --check package.json tsconfig.json vercel.json index.js eslint.config.js vite.config.ts .github/workflows/ci.yml web/app.js web/index.html web/style.css web/src/**/*.tsx",
+    "db:migrate:mariadb": "node scripts/migrate-mariadb.js",
+    "db:auth:migrate": "pnpm dlx auth@latest migrate --config backend/auth.js --yes"
+  },
+  "prettier": {
+    "printWidth": 110,
+    "singleQuote": false,
+    "trailingComma": "all"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -20,7 +32,23 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "lucide-static": "^1.75.0",
-    "pg": "^8.13.1",
+    "mysql2": "^3.24.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.73.0",
+    "vite": "^8.3.8"
   }
 }
