@@ -631,7 +631,7 @@ app.patch("/api/findings/:id", auth, roleGuard("owner", "admin", "analyst"), asy
 app.get("/api/audit", auth, (req, res) =>
   res.json({ events: read((s) => s.audit.filter((x) => sameWorkspace(x, req.workspaceId)).slice(0, 200)) }),
 );
-if (process.env.NODE_ENV === "production") app.use(express.static("public"));
+if (process.env.NODE_ENV === "production" && process.env.VERCEL !== "1") app.use(express.static("public"));
 app.use((err, req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
