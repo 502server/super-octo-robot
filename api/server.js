@@ -8,7 +8,16 @@ import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import dns from "node:dns/promises";
 import { z } from "zod";
-import { loadStore, read, write, id, now, refreshStore, withStoreState, assetVerificationChallenge } from "./store.js";
+import {
+  loadStore,
+  read,
+  write,
+  id,
+  now,
+  refreshStore,
+  withStoreState,
+  assetVerificationChallenge,
+} from "./store.js";
 import { hashToken, safeEqual, normalizeOrigin, isPrivateAddress } from "./security.js";
 import { createIntegrationRouter } from "./integrations.js";
 import { createIntelligenceRouter } from "./intelligence.js";
@@ -33,7 +42,12 @@ app.use(
   "/api/auth",
   rateLimit({ windowMs: 60000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false }),
 );
-app.all("/api/auth/*", toNodeHandler(authServer));
+const betterAuthHandler = authServer ? toNodeHandler(authServer) : null;
+app.all("/api/auth/*", (req, res, next) => {
+  if (!betterAuthHandler)
+    return res.status(503).json({ error: "OAuth requires a configured MariaDB connection" });
+  return betterAuthHandler(req, res, next);
+});
 app.use(express.json({ limit: "256kb" }));
 app.use(async (req, res, next) => {
   try {
@@ -203,7 +217,7 @@ const appIcons = new Set([
   "UsersRound",
   "Workflow",
 ]);
-app.get("/icons/:name.svg", (req, res) => {
+app.get(["/icons/:name.svg", "/api/icons/:name.svg"], (req, res) => {
   const name = req.params.name,
     svg = appIcons.has(name) && Object.hasOwn(lucideIcons, name) ? lucideIcons[name] : null;
   if (typeof svg !== "string") return res.status(404).end();
@@ -617,10 +631,14 @@ app.patch("/api/findings/:id", auth, roleGuard("owner", "admin", "analyst"), asy
 app.get("/api/audit", auth, (req, res) =>
   res.json({ events: read((s) => s.audit.filter((x) => sameWorkspace(x, req.workspaceId)).slice(0, 200)) }),
 );
-if (process.env.NODE_ENV === "production") app.use(express.static("web/dist"));
+if (process.env.NODE_ENV === "production" && process.env.VERCEL !== "1") app.use(express.static("public"));
 app.use((err, req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
 });
 await loadStore();
-app.listen(port, process.env.HOST || "0.0.0.0", () => console.log("fivezero2.group listening on " + port));
+if (process.env.VERCEL !== "1") {
+  app.listen(port, process.env.HOST || "0.0.0.0", () => console.log("fivezero2.group listening on " + port));
+}
+
+export default app;

@@ -14,11 +14,13 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "node --test",
-    "lint": "eslint eslint.config.js vite.config.ts api scripts test web/app.js web/src",
-    "format": "prettier --write package.json tsconfig.json eslint.config.js vite.config.ts .github/workflows/ci.yml .github/workflows/fly-deploy.yml web/app.js web/index.html web/style.css web/src/**/*.tsx",
-    "format:check": "prettier --check package.json tsconfig.json eslint.config.js vite.config.ts .github/workflows/ci.yml .github/workflows/fly-deploy.yml web/app.js web/index.html web/style.css web/src/**/*.tsx",
+    "lint": "eslint index.js eslint.config.js vite.config.ts api scripts test web/app.js web/src",
+    "format": "prettier --write package.json tsconfig.json vercel.json index.js eslint.config.js vite.config.ts .github/workflows/ci.yml .github/workflows/fly-deploy.yml web/app.js web/index.html web/style.css web/src/**/*.tsx",
+    "format:check": "prettier --check package.json tsconfig.json vercel.json index.js eslint.config.js vite.config.ts .github/workflows/ci.yml .github/workflows/fly-deploy.yml web/app.js web/index.html web/style.css web/src/**/*.tsx",
+    "db:migrate:mariadb": "node scripts/migrate-mariadb.js",
+    "db:auth:migrate": "pnpm dlx auth@latest migrate --config api/auth.js --yes",
     "db:preflight": "node scripts/preflight-json-import.js",
-    "db:import": "node scripts/import-json-to-postgres.js"
+    "db:import": "node scripts/import-json-to-mariadb.js"
   },
   "prettier": {
     "printWidth": 110,
@@ -33,6 +35,7 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "lucide-static": "^1.75.0",
+    "mysql2": "^3.24.6",
     "pg": "^8.13.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

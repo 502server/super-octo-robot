@@ -3,14 +3,16 @@
 Defensive asset inventory and security posture dashboard for systems you own or are explicitly authorized to assess.
 
 ## Features
+
 - Owner bootstrap and session authentication.
 - Asset inventory with DNS TXT ownership proof.
 - Passive HTTP/TLS availability checks using ordinary GET requests.
 - Findings triage, scan history, audit log, and dashboard.
 - Security headers, rate limiting, request validation, and origin checks.
-- PostgreSQL-backed application state when `DATABASE_URL` is configured; local JSON remains available for development.
+- MariaDB-backed transactional application state and Better Auth tables in hosted environments; local JSON remains available for development.
 
 ## Quick start
+
 Requires Node.js 20+.
 
 ```sh
@@ -18,26 +20,32 @@ cp .env.example .env
 npm install
 npm start
 ```
-Open http://localhost:3000. Set unique long values for BOOTSTRAP_TOKEN and SESSION_SECRET before starting. Without DATABASE_URL, local state is stored in data/state.json. With DATABASE_URL, PostgreSQL is authoritative and the existing JSON file is imported into the database on first initialization if the database state table is empty.
 
-## PostgreSQL runtime
-- Configure `DATABASE_URL` with the Fly Managed Postgres **PgBouncer** connection string. Do not commit it or put it in frontend configuration.
-- The Express runtime uses the relational tables in `migrations/001_workspace_intelligence.sql` through Drizzle ORM. Database reads are request-scoped snapshots; writes use a PostgreSQL transaction and advisory lock.
-- Before switching a database that contains `fivezero2_app_state`, run `pnpm db:import --from-database` as a dry-run. Apply only after reviewing counts and securing a restorable backup: `pnpm db:import --from-database --apply --backup-confirmed`.
-- The importer preserves password hashes and valid hashed sessions, remaps legacy IDs deterministically, validates tenant references, and never copies raw asset challenges or session tokens. The JSONB row is retained as a rollback copy.
-- A non-empty legacy JSONB row blocks app startup until the guarded import is complete. An empty database can start cleanly and use the relational store directly.
-- The GitHub Actions workflow supplies Fly's `DATABASE_URL` independently of this v0 preview's connected Neon environment. Verify the actual deployment secret and source database before any production migration; a dry-run from one environment is not proof it is the production database.
+Open http://localhost:3000. Set unique long values for BOOTSTRAP_TOKEN and SESSION_SECRET before starting. Without MARIADB_URL, local development state is stored in data/state.json. With MARIADB_URL, run `pnpm db:migrate:mariadb` and `pnpm db:auth:migrate` first; MariaDB is authoritative and local-file fallback is disabled in hosted environments.
+
+## MariaDB runtime
+
+- Configure `MARIADB_URL` with a `mysql://` or `mariadb://` URL that includes the database name. The driver always verifies TLS certificates; use `MARIADB_SSL_CA` only if the provider's CA is not in the system trust store. Never commit these values or expose them to browser code.
+- `FLY_DATABASE_URL` is a temporary PostgreSQL source-only setting for the guarded import; the application runtime never reads it.
+- The Express app stores all feature state in one MariaDB JSON row and performs each update inside a transaction with `SELECT ... FOR UPDATE`, so concurrent Vercel instances do not overwrite each other's updates. Better Auth uses the same MariaDB pool for its separate auth tables.
+- Initialize with `pnpm db:migrate:mariadb` and `pnpm db:auth:migrate`. The guarded importer can read from `FLY_DATABASE_URL` and writes only to MariaDB.
+- Dry-run before importing: `pnpm db:import -- --from-database`. Apply only after reviewing counts and securing a restorable backup: `pnpm db:import -- --from-database --apply --backup-confirmed`. The importer validates tenant references, preserves IDs and password/session hashes, never exports raw session tokens, and refuses to overwrite non-empty MariaDB state.
+- Keep Fly and Neon available until Vercel Preview and Production persistence, login, OAuth, and feature flows are verified; do not point Production at an empty target.
 
 ## API
+
 GET /api/health, POST /api/auth/bootstrap, POST /api/auth/login, POST /api/auth/logout, GET /api/me, GET/POST /api/assets, POST /api/assets/:id/verify, POST /api/assets/:id/check, GET /api/findings, PATCH /api/findings/:id, GET /api/audit.
 
 ## Safety
+
 Checks require verified DNS ownership and are limited to passive HTTP(S) GET requests. Private and loopback targets are blocked. Static security review is not included in this initial deployable baseline. Use only on authorized assets. Use HTTPS behind a trusted reverse proxy in production.
 
 ## Integration credentials and status
+
 The authenticated dashboard exposes `/api/integrations/status` and backend-only connection tests for DeepSeek and Hasura. It reports whether credentials are present and whether a test succeeds; it never returns credential values.
 
 Configure these values in the deployment environment or secret manager (not in browser code and not in Git):
+
 - `DEEPSEEK_API_KEY`
 - `DEEPSEEK_BASE_URL` (default `https://api.deepseek.com`)
 - `DEEPSEEK_MODEL` (default `deepseek-chat`)
@@ -47,14 +55,16 @@ Configure these values in the deployment environment or secret manager (not in b
 
 Never paste secrets into chat, commit them, or expose them to frontend JavaScript. GitHub access is managed by the GitHub App connector and is not configured with a repository PAT in this application.
 
-## Fly.io deployment
+## Vercel + MariaDB deployment
 
-The configured production target in `fly.toml` is Fly.io app `fivezero2-group-7777` in region `iad`. The deploy workflow must target the same app and region. Pushes to `main` run tests and deploy only when all required GitHub Actions secrets are configured.
+The application exports its Express handler from the repository root for Vercel, and Vite builds static assets into `public/`. Hosted app state and Better Auth use MariaDB through the same TLS-verified `MARIADB_URL` pool.
 
-Add these secrets in GitHub **Settings → Secrets and variables → Actions**:
-- `FLY_API_TOKEN`: app-scoped Fly deploy token.
-- `DATABASE_URL`: Fly Managed Postgres PgBouncer URL (runtime connection only).
-- `SESSION_SECRET`: random value of at least 32 characters.
-- `BOOTSTRAP_TOKEN`: separate random value of at least 24 characters.
+Configure these server-only variables in the Vercel project for Preview and Production:
 
-The workflow stages DATABASE_URL, SESSION_SECRET, and BOOTSTRAP_TOKEN as Fly app secrets, then deploys. A green test run alone does not prove that the live app is healthy; verify `/api/health`, login, and persisted writes after deployment. Rotate any credential that has been pasted into chat or otherwise exposed.
+- `MARIADB_URL`: rotated MariaDB connection URL including the database name.
+- `MARIADB_SSL_CA`: optional provider CA PEM, only if required to validate the server certificate.
+- `SESSION_SECRET`, `BETTER_AUTH_SECRET`, and `BOOTSTRAP_TOKEN`: unique, strong secrets.
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET` when those OAuth providers are enabled.
+- `FLY_DATABASE_URL`: temporary source-only PostgreSQL URL for the guarded import; remove it after migration verification.
+
+The production cutover is not complete until source data has been imported, counts and tenant references have been verified, and auth plus feature writes pass in Preview and Production. Keep the existing production service, Fly source database, and Neon rollback snapshot available until then.

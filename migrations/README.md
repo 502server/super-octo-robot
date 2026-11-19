@@ -1,46 +1,41 @@
-# PostgreSQL / Hasura migration plan
+# MariaDB cutover
 
-## Status
+MariaDB is the new primary database target. The Express application stores the shared workspace state in `fivezero2_app_state` and uses InnoDB row locks and transactions for cross-instance writes. Better Auth stores OAuth users, accounts, sessions, and verification records in its own MariaDB tables.
 
-`migrations/001_workspace_intelligence.sql` defines the relational schema for workspace identity, membership, invitations, sessions, authorized assets, IOC records, alerts, findings, asset checks and audit events.
+## Initialize a fresh target
 
-The additive schema has been applied to the connected Neon database. Hasura is not connected or configured. The live Express application still uses `public.fivezero2_app_state` as its canonical store (a single JSONB state document); the new relational tables are not yet the application's read/write path. Applying this DDL did not migrate existing application data or switch traffic.
+Configure a rotated, TLS-verified `MARIADB_URL` in the environment, including the database name. Then run:
 
-## Remaining cutover steps
+```sh
+pnpm db:migrate:mariadb
+pnpm db:auth:migrate
+```
 
-1. Take and verify a Neon snapshot before importing or switching active data.
-2. The relational Drizzle repository and guarded JSONB importer are implemented; test their auth, workspace and feature behavior against the intended source database.
-3. Run `pnpm db:import --from-database` against that exact source, review counts and references, and confirm a recoverable backup before applying.
-4. Switch the deployment only after the source has been imported, staging tests pass, and the production rollback path is verified.
-5. Keep the JSONB snapshot until the rollback window closes.
+The first command creates the application state table and an empty singleton row. The second runs Better Auth's built-in MySQL/MariaDB migration using `api/auth.js`. These setup commands are safe to repeat.
 
-Hasura is optional for the chosen Neon architecture. If added later, track tables and configure workspace-scoped permissions and relationships before exposing GraphQL; never expose its admin secret to the browser.
+## Import the legacy production state
 
-## Required Hasura permissions
+`FLY_DATABASE_URL` is read only by the one-time importer as a PostgreSQL source. It is never used by the application runtime. First run a dry-run and review the collection counts and validation warnings:
 
-Use workspace-scoped row filters for every tenant-owned table:
+```sh
+pnpm db:import -- --from-database
+```
 
-- Read/update/delete: `workspace_id = X-Hasura-Workspace-Id`.
-- Membership visibility: the active user must have a row in `workspace_memberships` for that workspace.
-- Role-specific permissions: viewer read-only; analyst operational IOC/alert/asset actions; admin membership and integration administration; owner-only ownership and admin grants.
-- Prevent clients from setting `created_by`, `actor_user_id`, `role=owner`, audit timestamps or workspace IDs arbitrarily.
-- Make `audit_events` insert-only for the application; deny update/delete.
-- Use a Hasura server-side role or trusted backend for invitation consumption and session writes. Never expose the Hasura admin secret to the browser.
+Only after securing and verifying a restorable source backup, apply the import:
 
-Hasura permission metadata and JWT claims are not included in this SQL migration. They must be configured and tested separately.
+```sh
+pnpm db:import -- --from-database --apply --backup-confirmed
+```
 
-## Application cutover still required
+The importer validates tenant references, preserves app IDs and existing password/session hashes, refuses to overwrite a non-empty MariaDB target, and writes all app state in a single transaction. It does not modify the PostgreSQL source. A local JSON export can be imported by passing its path instead of `--from-database`.
 
-- Add a PostgreSQL driver and connection pooling in the Express backend.
-- Implement repositories for users, memberships, invitations, sessions, assets, indicators, alerts and audit events.
-- Build a one-time JSON-to-PostgreSQL importer with deterministic ID mapping, dry-run mode, counts and rollback plan.
-- Keep writes disabled during final import; verify row counts and workspace ownership before switching traffic.
-- Test cross-workspace read/write denial, session revocation, unique IOC deduplication and backup/restore.
-- Only after those tests pass should `DATA_FILE` be retired and the JSON store removed from production.
+## Cutover checklist
 
-## Important design notes
+- Rotate any credential disclosed outside the secret manager; never commit or log database URLs.
+- Verify the MariaDB CA chain; TLS server verification is mandatory (`rejectUnauthorized: true`). Provide `MARIADB_SSL_CA` only when the provider CA is not in the system trust store.
+- Confirm the target schema and Better Auth tables exist.
+- Confirm source backup, dry-run counts, and the exact production source before applying.
+- Test bootstrap/login, OAuth, invitations, workspace roles, assets, checks, findings, indicators, alerts, and audit persistence on Vercel Preview.
+- Switch Production only after end-to-end persistence passes; retain Fly and Neon until the rollback window closes.
 
-- The schema uses composite foreign keys to prevent an alert from referencing an IOC or assignee in another workspace.
-- The current application has one workspace per user. The relational schema supports memberships as a many-to-many relation, but the UI's workspace switching and multi-membership session selection are not implemented yet.
-- Invitation token hashes are stored, not raw invitation tokens.
-- No plaintext passwords, leaked credentials or external API secrets belong in these tables.
+`001_workspace_intelligence.sql` is the historical PostgreSQL/Neon relational schema. It is not used by the MariaDB runtime and must not be applied to MariaDB. PostgreSQL remains a source-only dependency until the legacy data import is verified.
