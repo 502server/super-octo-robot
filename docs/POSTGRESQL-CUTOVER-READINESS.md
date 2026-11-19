@@ -2,7 +2,9 @@
 
 ## Decision
 
-The Express application connects to Neon when `DATABASE_URL` is present, but `api/store.js` stores the entire application state in one `public.fivezero2_app_state.payload` JSONB row. The relational schema in `migrations/001_workspace_intelligence.sql` is now applied to Neon, but its tables are not yet used by application routes and have not been backfilled. Hasura is not connected or configured; it is optional for the selected Neon architecture. Do not claim a relational cutover until repositories, data backfill, and isolation tests are complete.
+The Express application now uses Drizzle-backed relational tables for users, workspaces, memberships, invitations, sessions, assets, indicators, alerts, findings, checks, and audit events whenever `DATABASE_URL` is configured. The repository preserves the existing callback-based application behavior while loading a consistent request snapshot and serializing transactional writes with a PostgreSQL advisory lock. Hasura remains optional and is not used by the application.
+
+The guarded importer can read the legacy `fivezero2_app_state.payload` directly with `pnpm db:import --from-database`; it defaults to dry-run and retains the source JSONB row after import. The currently connected v0 Neon database returned zero legacy users, workspaces, and feature records in its dry-run. Production deployment uses the separate `DATABASE_URL` GitHub Actions secret for Fly, so the preview result is not evidence about the production database. Do not migrate or redirect production until that source is identified and dry-run counts are reviewed.
 
 ## Runtime-to-relational mapping
 
@@ -31,25 +33,16 @@ The importer must remain a separate command and default to dry-run. It must read
 
 ## Cutover gates
 
-- [ ] Apply reviewed schema to a backed-up non-production database.
-- [ ] Configure Hasura relationships, row permissions, JWT claims and workspace filters.
-- [ ] Implement hashed asset-challenge verification.
-- [x] Add a transactional importer with dry-run default and explicit apply gate.
-- [ ] Implement async PostgreSQL repositories behind an explicit feature flag; JSON remains default.
-- [ ] Test cross-workspace denial, invitation consumption, session expiry/revocation, IOC deduplication and concurrent writes.
-- [ ] Dry-run importer against a copy of real JSON data; resolve all rejected rows.
-- [ ] Import to staging, compare counts and run integration tests.
-- [ ] Back up production, freeze writes, import, verify, then switch traffic.
-- [ ] Keep a tested rollback path until the rollback window closes.
+- [x] Apply the relational schema and create the import-batch marker table.
+- [x] Implement a Drizzle relational store for all application collections.
+- [x] Keep callback APIs compatible while using per-request database snapshots and serialized transactions.
+- [x] Implement a database-sourced, transactional importer with dry-run default and explicit backup/apply gates.
+- [x] Preserve sessions, OAuth identity fields, hashed password values, and workspace ownership during ID remapping.
+- [x] Derive stable asset verification challenges from the server secret; store only their hashes.
+- [x] Run unit tests covering legacy references, tenant-safe mappings, session preservation, and IOC validation.
+- [ ] Run the importer against the actual Fly production database; the v0-connected Neon preview source returned an empty state.
+- [ ] Review actual production counts, snapshot/backup availability, and every rejected row before import.
+- [ ] Run integration tests for workspace isolation, invitation single-use, expiry/revocation, IOC deduplication, and concurrent writes on staging.
+- [ ] Cut over production only after explicit source confirmation, import verification, and rollback testing.
 
-## Known blockers
-
-- The importer uses the `pg` driver, but no application repository adapter exists.
-- Routes use synchronous `read()` and callback-based `write()`; PostgreSQL is asynchronous and requires a deliberate repository/service refactor.
-- Legacy `ws_default` is not a UUID.
-- Asset verification currently uses a plaintext challenge in JSON.
-- Alert assignees are usernames, but SQL expects a membership UUID.
-- Hasura metadata and row-level permissions are not included in SQL.
-- The current app supports one workspace per user; the schema supports many-to-many memberships.
-
-JSON remains the only active persistence backend until these blockers are resolved.
+Hasura is optional and remains unconfigured. The current runtime checks workspace membership in the Express service; do not expose database credentials or these tables directly to untrusted clients.

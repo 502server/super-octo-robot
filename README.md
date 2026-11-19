@@ -22,11 +22,11 @@ Open http://localhost:3000. Set unique long values for BOOTSTRAP_TOKEN and SESSI
 
 ## PostgreSQL runtime
 - Configure `DATABASE_URL` with the Fly Managed Postgres **PgBouncer** connection string. Do not commit it or put it in frontend configuration.
-- The app creates `fivezero2_app_state` automatically. Existing `data/state.json` is copied into this table only when the table has no state row; subsequent writes are committed transactionally in PostgreSQL.
-- The runtime uses one application-state row and serializes writes with `SELECT ... FOR UPDATE`. Keep the app to **one Fly Machine**; this adapter is not a horizontally-scalable multi-instance repository.
-- The direct PostgreSQL URL is reserved for administrative/migration tasks and is not needed by the runtime adapter.
-- Back up the JSON volume and database before cutover. Verify the first import and application behavior before removing the legacy volume.
-- The relational schema in `migrations/001_workspace_intelligence.sql` is a separate schema draft; the current runtime adapter stores the existing application state as JSONB and does not claim that the relational tables are active.
+- The Express runtime uses the relational tables in `migrations/001_workspace_intelligence.sql` through Drizzle ORM. Database reads are request-scoped snapshots; writes use a PostgreSQL transaction and advisory lock.
+- Before switching a database that contains `fivezero2_app_state`, run `pnpm db:import --from-database` as a dry-run. Apply only after reviewing counts and securing a restorable backup: `pnpm db:import --from-database --apply --backup-confirmed`.
+- The importer preserves password hashes and valid hashed sessions, remaps legacy IDs deterministically, validates tenant references, and never copies raw asset challenges or session tokens. The JSONB row is retained as a rollback copy.
+- A non-empty legacy JSONB row blocks app startup until the guarded import is complete. An empty database can start cleanly and use the relational store directly.
+- The GitHub Actions workflow supplies Fly's `DATABASE_URL` independently of this v0 preview's connected Neon environment. Verify the actual deployment secret and source database before any production migration; a dry-run from one environment is not proof it is the production database.
 
 ## API
 GET /api/health, POST /api/auth/bootstrap, POST /api/auth/login, POST /api/auth/logout, GET /api/me, GET/POST /api/assets, POST /api/assets/:id/verify, POST /api/assets/:id/check, GET /api/findings, PATCH /api/findings/:id, GET /api/audit.

@@ -9,9 +9,9 @@ The additive schema has been applied to the connected Neon database. Hasura is n
 ## Remaining cutover steps
 
 1. Take and verify a Neon snapshot before importing or switching active data.
-2. Implement and test relational repositories against the current auth, workspace and feature behavior.
-3. Backfill the existing JSONB state with deterministic ID mapping; verify counts, references and workspace isolation.
-4. Switch application reads/writes only after staging and rollback tests pass.
+2. The relational Drizzle repository and guarded JSONB importer are implemented; test their auth, workspace and feature behavior against the intended source database.
+3. Run `pnpm db:import --from-database` against that exact source, review counts and references, and confirm a recoverable backup before applying.
+4. Switch the deployment only after the source has been imported, staging tests pass, and the production rollback path is verified.
 5. Keep the JSONB snapshot until the rollback window closes.
 
 Hasura is optional for the chosen Neon architecture. If added later, track tables and configure workspace-scoped permissions and relationships before exposing GraphQL; never expose its admin secret to the browser.

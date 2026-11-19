@@ -69,7 +69,7 @@ export function inspectState(input) {
   checkRef("alerts",input.alerts,x=>!x.assignee||rows("users").some(u=>u.username?.toLowerCase()===String(x.assignee).toLowerCase()&&u.workspaceId===x.workspaceId),"ASSIGNEE_NOT_FOUND_OR_CROSS_WORKSPACE");
   checkRef("audit",input.audit,x=>!x.userId||userIds.has(String(x.userId)),"USER_NOT_FOUND");
   checkRef("assets",input.assets,x=>typeof x.url==="string"&&x.url.length>0,"ASSET_ORIGIN_MISSING");
-  checkRef("users",input.users,x=>typeof x.username==="string"&&x.username.length>0&&typeof x.passwordHash==="string","USER_CREDENTIAL_FIELDS_INVALID");
+  checkRef("users",input.users,x=>typeof x.username==="string"&&x.username.length>0&&(typeof x.passwordHash==="string"||typeof x.authUserId==="string"||(Array.isArray(x.oauthIdentityIds)&&x.oauthIdentityIds.length>0)),"USER_CREDENTIAL_FIELDS_INVALID");
   checkRef("iocs",input.iocs,x=>typeof x.type==="string"&&typeof x.value==="string","IOC_FIELDS_INVALID");
   checkRef("alerts",input.alerts,x=>typeof x.title==="string"&&typeof x.severity==="string","ALERT_FIELDS_INVALID");
   const blocking = issues.filter(x=>!["ID_WILL_BE_REMAPPED"].includes(x.code));

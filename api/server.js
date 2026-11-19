@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import dns from "node:dns/promises";
 import { z } from "zod";
-import { loadStore, read, write, id, now } from "./store.js";
+import { loadStore, read, write, id, now, refreshStore, withStoreState, assetVerificationChallenge } from "./store.js";
 import { hashToken, safeEqual, normalizeOrigin, isPrivateAddress } from "./security.js";
 import { createIntegrationRouter } from "./integrations.js";
 import { createIntelligenceRouter } from "./intelligence.js";
@@ -35,6 +35,14 @@ app.use(
 );
 app.all("/api/auth/*", toNodeHandler(authServer));
 app.use(express.json({ limit: "256kb" }));
+app.use(async (req, res, next) => {
+  try {
+    const snapshot = await refreshStore();
+    withStoreState(snapshot, next);
+  } catch (error) {
+    next(error);
+  }
+});
 app.use(rateLimit({ windowMs: 60000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false }));
 const limiter = rateLimit({ windowMs: 900000, limit: 10, standardHeaders: true, legacyHeaders: false });
 const account = z.object({
@@ -513,14 +521,15 @@ app.post("/api/assets", auth, roleGuard("owner", "admin", "analyst"), async (req
   } catch (e) {
     return res.status(400).json({ error: e.message });
   }
+  const assetId = id();
   const a = {
-    id: id(),
+    id: assetId,
     workspaceId: req.workspaceId,
     name: p.data.name,
     url: origin,
     notes: p.data.notes,
     verified: false,
-    challenge: crypto.randomBytes(18).toString("hex"),
+    challenge: assetVerificationChallenge(assetId),
     createdAt: now(),
     createdBy: req.user.id,
   };
