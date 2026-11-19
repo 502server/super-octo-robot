@@ -97,6 +97,9 @@ function navigate(page) {
   renderNavigation(page);
   $("#breadcrumb-current").textContent = title;
   if (page === "dashboard") renderDashboard();
+  else if (page === "threat-overview") renderThreatOverview();
+  else if (page === "hunt-center") renderHuntCenter();
+  else if (page === "vulnerabilities") renderVulnerabilitiesPage();
   else if (page === "iocs") renderIOCPage();
   else if (page === "alerts") renderAlertsPage();
   else if (page === "assets" || page === "attack-surface") renderAssetsPage(page);
@@ -468,6 +471,91 @@ function renderCloudShell() {
     form.requestSubmit();
     input.focus();
   }));
+}
+
+async function renderThreatOverview() {
+  viewRoot.innerHTML = `${pageHeading("THREAT INTELLIGENCE / WORKSPACE", "Threat overview", "A current, evidence-based view of indicators, alerts, assets, and findings.", '<button class="secondary-button" id="refresh-threat-overview">↻ <span>Refresh</span></button>')}<div id="threat-overview-content" class="module-data-content" aria-live="polite"></div>`;
+  $("#refresh-threat-overview").addEventListener("click", loadThreatOverview);
+  await loadThreatOverview();
+}
+
+async function loadThreatOverview() {
+  const root = $("#threat-overview-content");
+  if (!root) return;
+  root.innerHTML = '<div class="loading-state">Loading workspace intelligence…</div>';
+  try {
+    const [{ summary }, { alerts }, { iocs }, { assets }, { findings }] = await Promise.all([
+      api("/intel/summary"), api("/intel/alerts"), api("/intel/iocs"), api("/assets"), api("/findings"),
+    ]);
+    const activeAlerts = alerts.filter((alert) => !["resolved", "false_positive"].includes(alert.status));
+    const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+    activeAlerts.forEach((alert) => { if (Object.hasOwn(counts, alert.severity)) counts[alert.severity] += 1; });
+    const recent = [...alerts].sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, 5);
+    const sources = new Set(iocs.flatMap((ioc) => ioc.sources || [ioc.source]).filter(Boolean));
+    root.innerHTML = `<section class="metric-grid" aria-label="Threat posture metrics">${metricCard("Active alerts", activeAlerts.length, `${counts.critical} critical · ${counts.high} high`, "red", "Bell")}${metricCard("Indicators", summary.iocCount, `${summary.watchlisted} watchlisted`, "cyan", "ScanSearch")}${metricCard("Verified assets", summary.verifiedAssets, `${assets.length} registered`, "blue", "Globe")}${metricCard("Open findings", summary.openFindings, `${findings.filter((item) => item.severity === "critical" && item.status === "open").length} critical severity`, "amber", "Bug")}</section><div class="module-info-grid"><article class="surface-card"><p class="section-kicker">SEVERITY DISTRIBUTION</p><h2>Open alerts by severity</h2><div class="overview-severity-list">${["critical", "high", "medium", "low"].map((severity) => `<div class="overview-severity-row"><span class="severity-pill ${severity}">${severity}</span><strong>${counts[severity]}</strong></div>`).join("")}</div></article><article class="surface-card"><p class="section-kicker">DATA PROVENANCE</p><h2>Workspace coverage</h2><p class="page-subtitle">${iocs.length} indicators from ${sources.size} recorded source${sources.size === 1 ? "" : "s"}. These are analyst-entered or imported records; no external feed health is implied.</p><div class="overview-links"><button class="text-button" data-page="iocs">Review indicators →</button><button class="text-button" data-page="assets">Review assets →</button></div></article></div><section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">RECENT ACTIVITY</p><h2>Latest alerts</h2></div><button class="text-button" data-page="alerts">View all →</button></div>${recent.length ? `<div class="alert-list">${recent.map((alert) => `<article class="alert-row"><span class="severity-mark ${escapeHTML(alert.severity)}"></span><div class="alert-copy"><strong>${escapeHTML(alert.title)}</strong><small>${escapeHTML(alert.source || "Manual")} · ${escapeHTML(alert.status.replaceAll("_", " "))}</small></div><span class="severity-pill ${escapeHTML(alert.severity)}">${escapeHTML(alert.severity)}</span><time>${formatTime(alert.updatedAt || alert.createdAt)}</time></article>`).join("")}</div>` : emptyState("No alerts recorded", "Alerts created in this workspace will appear here.")}</section>`;
+    $$('[data-page]', root).forEach((button) => button.addEventListener("click", () => navigate(button.dataset.page)));
+  } catch (error) {
+    root.innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`;
+  }
+}
+
+function renderHuntCenter() {
+  viewRoot.innerHTML = `${pageHeading("INVESTIGATIONS / SEARCH", "Hunt center", "Search the evidence already in this workspace. External telemetry hunts require a connected SIEM source.")}<section class="surface-card form-card"><form id="hunt-search-form" class="inline-form"><label class="wide-field">Search indicators, alerts, assets, and findings<input id="hunt-query" name="query" type="search" maxlength="200" placeholder="Enter a domain, IP, alert phrase, or asset name" autocomplete="off" /></label><button class="primary-button">Search workspace <span>→</span></button></form><p class="form-message">Workspace search only · no external systems are queried.</p></section><section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">MATCHING RECORDS</p><h2 id="hunt-result-heading">Recent workspace evidence</h2></div></div><div id="hunt-results" class="hunt-results" aria-live="polite"></div></section>`;
+  const form = $("#hunt-search-form");
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (event.nativeEvent?.isComposing || event.nativeEvent?.keyCode === 229) return;
+    runWorkspaceHunt($("#hunt-query").value);
+  });
+  runWorkspaceHunt("");
+}
+
+async function runWorkspaceHunt(query) {
+  const root = $("#hunt-results");
+  if (!root) return;
+  const term = query.trim().toLowerCase();
+  $("#hunt-result-heading").textContent = term ? `Results for “${query.trim()}”` : "Recent workspace evidence";
+  root.innerHTML = '<div class="loading-state">Searching workspace records…</div>';
+  try {
+    const [{ iocs }, { alerts }, { assets }, { findings }] = await Promise.all([api("/intel/iocs"), api("/intel/alerts"), api("/assets"), api("/findings")]);
+    const records = [
+      ...iocs.map((item) => ({ kind: "Indicator", title: item.value, detail: `${item.type} · ${(item.sources || [item.source || "manual"]).join(", ")} · confidence ${item.confidence}%`, at: item.lastSeen, page: "iocs", search: [item.value, item.type, ...(item.tags || []), ...(item.sources || [])].join(" ") })),
+      ...alerts.map((item) => ({ kind: "Alert", title: item.title, detail: `${item.severity} · ${item.status.replaceAll("_", " ")} · ${item.source || "Manual"}`, at: item.updatedAt || item.createdAt, page: "alerts", search: [item.title, item.description, item.severity, item.status, item.source].join(" ") })),
+      ...assets.map((item) => ({ kind: "Asset", title: item.name, detail: `${item.url} · ${item.verified ? "verified" : "unverified"}`, at: item.createdAt, page: "assets", search: [item.name, item.url, item.notes].join(" ") })),
+      ...findings.map((item) => ({ kind: "Finding", title: item.title || item.name || "Finding", detail: `${item.severity} · ${item.status} · ${item.description || "No additional detail"}`, at: item.createdAt, page: "vulnerabilities", search: [item.title, item.name, item.description, item.severity, item.status].join(" ") })),
+    ].filter((item) => !term || item.search.toLowerCase().includes(term)).sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0)).slice(0, 100);
+    root.innerHTML = records.length ? records.map((record) => `<article class="hunt-result"><div><span class="subtle-tag">${escapeHTML(record.kind)}</span><strong>${escapeHTML(record.title)}</strong><small>${escapeHTML(record.detail)}</small></div><time>${formatTime(record.at)}</time><button class="text-button" data-hunt-page="${record.page}" aria-label="Open ${escapeHTML(record.kind)} record">Open →</button></article>`).join("") : emptyState("No matching records", term ? "Try a shorter term or search another workspace value." : "No indicators, alerts, assets, or findings are available yet.");
+    $$('[data-hunt-page]', root).forEach((button) => button.addEventListener("click", () => navigate(button.dataset.huntPage)));
+  } catch (error) {
+    root.innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`;
+  }
+}
+
+function renderVulnerabilitiesPage() {
+  viewRoot.innerHTML = `${pageHeading("EXPOSURE / FINDINGS", "Vulnerabilities", "Review and disposition findings recorded for authorized workspace assets.", '<button class="secondary-button" id="refresh-vulnerabilities">↻ <span>Refresh</span></button>')}<section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">WORKSPACE FINDINGS</p><h2>Finding inventory</h2></div></div><div id="vulnerabilities-list" class="findings-list" aria-live="polite"></div><p class="form-message">This view shows recorded findings only. It does not perform vulnerability scanning.</p></section>`;
+  $("#refresh-vulnerabilities").addEventListener("click", loadVulnerabilities);
+  loadVulnerabilities();
+}
+
+async function loadVulnerabilities() {
+  const root = $("#vulnerabilities-list");
+  if (!root) return;
+  try {
+    const { findings } = await api("/findings");
+    root.innerHTML = findings.length ? findings.map((finding) => `<article class="finding-row"><span class="severity-mark ${escapeHTML(finding.severity)}"></span><div><strong>${escapeHTML(finding.title || finding.name || "Finding")}</strong><small>${escapeHTML(finding.description || "No additional detail")}</small></div><span class="severity-pill ${escapeHTML(finding.severity)}">${escapeHTML(finding.severity)}</span><select data-vulnerability-id="${escapeHTML(finding.id)}" aria-label="Finding status" ${canWriteWorkspace() ? "" : "disabled"}>${["open", "accepted", "fixed", "false_positive"].map((status) => `<option value="${status}" ${finding.status === status ? "selected" : ""}>${status.replaceAll("_", " ")}</option>`).join("")}</select></article>`).join("") : emptyState("No vulnerabilities recorded", "Findings from authorized asset reviews will appear here; this page does not invent scan results.");
+    $$('[data-vulnerability-id]', root).forEach((select) => select.addEventListener("change", async () => {
+      select.disabled = true;
+      try {
+        await api(`/findings/${encodeURIComponent(select.dataset.vulnerabilityId)}`, { method: "PATCH", body: JSON.stringify({ status: select.value }) });
+        await loadVulnerabilities();
+      } catch (error) {
+        root.insertAdjacentHTML("afterbegin", `<div class="inline-error">${escapeHTML(error.message)}</div>`);
+        select.disabled = !canWriteWorkspace();
+      }
+    }));
+  } catch (error) {
+    root.innerHTML = `<div class="inline-error">${escapeHTML(error.message)}</div>`;
+  }
 }
 
 function renderModulePage(page) {
