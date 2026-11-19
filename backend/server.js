@@ -22,6 +22,7 @@ import { hashToken, safeEqual, normalizeOrigin, isPrivateAddress } from "./secur
 import { createAssistantRouter } from "./assistant.js";
 import { createIntegrationRouter } from "./integrations.js";
 import { createIntelligenceRouter } from "./intelligence.js";
+import { createFeedsRouter } from "./feeds.js";
 import { createSystemRouter } from "./system.js";
 import { createPlaygroundRouter } from "./playground.js";
 import { roleGuard, canAssignRole, sameWorkspace } from "./access.js";
@@ -235,6 +236,7 @@ app.get("/api/auth-status", (_, res) => res.json({ providers: oauthProviderStatu
 app.use("/api/assistant", createAssistantRouter(auth));
 app.use("/api/integrations", createIntegrationRouter(auth));
 app.use("/api/intel", createIntelligenceRouter(auth));
+app.use("/api/feeds", createFeedsRouter(auth));
 app.use("/api/system", createSystemRouter(auth));
 app.use("/api/playground", createPlaygroundRouter(auth));
 app.post("/api/oauth/complete", async (req, res) => {
@@ -637,8 +639,8 @@ app.patch("/api/findings/:id", auth, roleGuard("owner", "admin", "analyst"), asy
 app.get("/api/audit", auth, (req, res) =>
   res.json({ events: read((s) => s.audit.filter((x) => sameWorkspace(x, req.workspaceId)).slice(0, 200)) }),
 );
-if (process.env.NODE_ENV === "production" && process.env.VERCEL !== "1") app.use(express.static("public"));
-app.get("/", (_req, res) => res.redirect(302, "/index.html"));
+app.use(express.static("public"));
+app.get("/", (_req, res) => res.sendFile("public/index.html", { root: "." }));
 app.use((err, req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: "Internal server error" });

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {validateIndicator} from "../backend/intelligence.js";
+import {normalizeKevEntry} from "../backend/feeds.js";
 
 test("accepts supported IOC formats",()=>{
  assert.equal(validateIndicator("ip","8.8.8.8"),true);
@@ -17,4 +18,27 @@ test("rejects malformed and unsafe IOC values",()=>{
  assert.equal(validateIndicator("url","https://user:pass@example.com"),false);
  assert.equal(validateIndicator("hash","xyz"),false);
  assert.equal(validateIndicator("email","not-an-email"),false);
+});
+
+test("normalizes CISA KEV vulnerabilities into workspace feed records", () => {
+ const entry = normalizeKevEntry({
+  cveID: "CVE-2024-12345",
+  vulnerabilityName: "Example vulnerability",
+  shortDescription: "A vulnerability description.",
+  vendorProject: "Example Vendor",
+  product: "Example Product",
+  dateAdded: "2024-03-01",
+  dueDate: "2024-03-15",
+  knownRansomwareCampaignUse: "Known",
+ });
+ assert.equal(entry.title, "CVE-2024-12345: Example vulnerability");
+ assert.equal(entry.severity, "critical");
+ assert.equal(entry.feedMetadata.cveId, "CVE-2024-12345");
+ assert.match(entry.reference, /CVE-2024-12345$/);
+ assert.match(entry.summary, /Example Vendor/);
+});
+
+test("ignores CISA KEV rows without a valid CVE identifier", () => {
+ assert.equal(normalizeKevEntry({ cveID: "not-a-cve" }), null);
+ assert.equal(normalizeKevEntry(null), null);
 });

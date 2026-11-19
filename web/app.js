@@ -1117,6 +1117,11 @@ async function loadVulnerabilities() {
 }
 
 function renderModulePage(page) {
+  if (page === "feeds") {
+    renderFeedsPage();
+    return;
+  }
+
   const [title, description, connection] = pageInfo[page] || [
     "Workspace module",
     "Review threat intelligence and operational status for your organization.",
@@ -1198,6 +1203,82 @@ async function createModuleRecord(event, page) {
     await loadModuleRecords(page, $("#module-filter").value);
   } catch (error) {
     $("#module-record-message").textContent = error.message;
+  }
+}
+
+function renderFeedsPage() {
+  viewRoot.innerHTML = `${pageHeading("THREAT INTELLIGENCE / FEEDS", "External threat feeds", "Review and import actively exploited vulnerabilities from CISA’s public catalog.", '<button class="secondary-button" id="sync-feeds">↻ <span>Refresh</span></button>')}
+    <section class="surface-card form-card"><div class="card-heading"><div><p class="section-kicker">FEED STATUS</p><h2>CISA Known Exploited Vulnerabilities</h2></div></div>
+      <div id="feed-status" class="feed-status-panel"></div>
+      <button class="primary-button" id="sync-cisa" style="margin-top: 12px;">Sync CISA KEV catalog</button>
+      <p id="feed-message" class="form-message" role="status" aria-live="polite">Sync imports the latest CISA KEV entries into your workspace; imported records are deduplicated by CVE.</p>
+    </section>
+    <section class="surface-card table-card"><div class="card-heading"><div><p class="section-kicker">FEED ENTRIES</p><h2>Recently added vulnerabilities</h2></div><label class="table-search"><span aria-hidden="true">⌕</span><input id="feed-filter" type="search" maxlength="200" placeholder="Filter vulnerabilities" aria-label="Filter feed entries" /></label></div><div id="feed-entries-list" class="module-record-list" aria-live="polite"></div></section>`;
+  
+  $("#sync-feeds").addEventListener("click", () => {
+    loadFeedsStatus();
+    loadFeedEntries($("#feed-filter").value);
+  });
+  const syncButton = $("#sync-cisa");
+  syncButton.disabled = !canWriteWorkspace();
+  syncButton.addEventListener("click", syncCisaFeed);
+  $("#feed-filter").addEventListener("input", () => loadFeedEntries($("#feed-filter").value));
+  
+  loadFeedsStatus();
+  loadFeedEntries();
+}
+
+async function loadFeedsStatus() {
+  try {
+    const status = await api("/feeds/status");
+    const { source, records, lastSyncAt } = status;
+    const statusEl = $("#feed-status");
+    if (statusEl) {
+      statusEl.innerHTML = `
+        <div class="feed-info-grid">
+          <div><strong>Source</strong><p>${escapeHTML(source)}</p></div>
+          <div><strong>Synced records</strong><p>${records} vulnerabilities</p></div>
+          <div><strong>Last sync</strong><p>${lastSyncAt ? formatTime(lastSyncAt) : "Never"}</p></div>
+        </div>
+      `;
+    }
+  } catch (error) {
+    $("#feed-status").innerHTML = `<div class="inline-error" role="alert">${escapeHTML(error.message)}</div>`;
+  }
+}
+
+async function syncCisaFeed() {
+  const button = $("#sync-cisa");
+  const msgEl = $("#feed-message");
+  button.disabled = true;
+  try {
+    const result = await api("/feeds/sync", { method: "POST" });
+    msgEl.textContent = `Synced: ${result.created} new, ${result.updated} updated, ${result.imported} total from CISA. Last sync: ${formatTime(result.syncedAt)}`;
+    await loadFeedsStatus();
+    await loadFeedEntries();
+  } catch (error) {
+    msgEl.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function loadFeedEntries(query = "") {
+  try {
+    const { records } = await api(`/intel/modules/feeds${query ? `?q=${encodeURIComponent(query)}` : ""}`);
+    const root = $("#feed-entries-list");
+    if (!root) return;
+
+    root.innerHTML = records.length
+      ? records
+          .map(
+            (record) =>
+              `<article class="module-record-row feed-record-row"><span class="severity-mark ${escapeHTML(record.severity)}"></span><div class="module-record-copy"><strong>${escapeHTML(record.title)}</strong><small>${escapeHTML(record.summary || record.reference || "No details")}</small><span class="module-record-meta">${escapeHTML(record.source)} · ${formatTime(record.createdAt)}</span></div><span class="severity-pill ${escapeHTML(record.severity)}">${escapeHTML(record.severity)}</span></article>`,
+          )
+          .join("")
+      : emptyState("No feed entries yet", query ? "Try another search term." : "Click 'Sync CISA KEV' to import the latest vulnerabilities.");
+  } catch (error) {
+    $("#feed-entries-list").innerHTML = `<div class="inline-error" role="alert">${escapeHTML(error.message)}</div>`;
   }
 }
 
