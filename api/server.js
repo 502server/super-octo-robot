@@ -16,7 +16,7 @@ import {roleGuard,canAssignRole,sameWorkspace} from "./access.js";
 const app=express(),port=Number(process.env.PORT||3000),bootstrapToken=process.env.BOOTSTRAP_TOKEN||"",sessionSecret=process.env.SESSION_SECRET||process.env.BETTER_AUTH_SECRET||"";
 if(sessionSecret.length<32)throw Error("SESSION_SECRET must be at least 32 characters");
 if(bootstrapToken.length<24)throw Error("BOOTSTRAP_TOKEN must be at least 24 characters");
-if(process.env.TRUST_PROXY==="1")app.set("trust proxy",1);
+if(process.env.TRUST_PROXY==="1"||process.env.VERCEL==="1"||process.env.V0_RUNTIME_URL)app.set("trust proxy",1);
 app.disable("x-powered-by");app.use(helmet());
 app.use((req,res,next)=>{const origin=req.get("origin"),expected=process.env.ALLOWED_ORIGIN||req.protocol+"://"+req.get("host");if(origin&&origin!==expected)return res.status(403).json({error:"Cross-origin request blocked"});next()});
 app.use("/api/auth",rateLimit({windowMs:60000,limit:30,standardHeaders:"draft-7",legacyHeaders:false}));

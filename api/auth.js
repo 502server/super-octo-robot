@@ -8,7 +8,7 @@ if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 3
 }
 
 const pool = new Pool({
-  connectionString: databaseUrl,
+  connectionString: process.env.DATABASE_URL_UNPOOLED || databaseUrl,
   max: Number(process.env.AUTH_PG_POOL_MAX || 3),
   ssl: { rejectUnauthorized: true },
   options: "-c search_path=fivezero2_auth",
