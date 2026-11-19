@@ -86,4 +86,5 @@ export const authServer = pool
     })
   : null;
 
-export { oauthProviderStatus };
+export { authServer as auth, oauthProviderStatus };
+export default authServer;
